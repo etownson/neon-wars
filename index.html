@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neon Wars — M1 Prototype</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #050510;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+
+      #game {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+
+      #hud {
+        position: fixed;
+        top: 12px;
+        left: 14px;
+        color: #05d9e8;
+        font-weight: 600;
+        text-shadow: 0 0 8px #05d9e8;
+        user-select: none;
+        pointer-events: none;
+      }
+
+      #hint {
+        position: fixed;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ff2a6d;
+        font-size: 13px;
+        text-shadow: 0 0 6px #ff2a6d;
+        user-select: none;
+        pointer-events: none;
+        text-align: center;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="hud">KILLS&nbsp;<span id="kills">0</span></div>
+    <div id="hint">Left stick move · Right stick to aim &amp; auto-fire</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
