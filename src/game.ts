@@ -5,6 +5,7 @@ import * as cfg from "./config";
 import { PALETTE, ScoreKey } from "./config";
 import { norm, v, Vec, clamp } from "./vec";
 import type { Bullet, Enemy, EnemyKind, Particle, Player, InputState } from "./types";
+import type { Fx } from "./audio";
 
 export class Game {
   player: Player;
@@ -23,10 +24,15 @@ export class Game {
   waveTime = 0;
   spawnTimer = 1.0;
 
+  shake = 0; // screen-shake trauma 0..1
+  hitStop = 0; // seconds of simulation freeze
+
   width: number;
   height: number;
+  private fx: Fx;
 
-  constructor(width: number, height: number) {
+  constructor(width: number, height: number, fx: Fx = {}) {
+    this.fx = fx;
     this.width = width;
     this.height = height;
     this.player = {
@@ -66,7 +72,14 @@ export class Game {
   // ---- Main step ----
 
   step(state: InputState, dt: number): void {
+    // Hit-stop: freeze the simulation briefly for impact, then resume.
+    if (this.hitStop > 0) {
+      this.hitStop -= dt;
+      return;
+    }
+
     this.time += dt;
+    this.shake = Math.max(0, this.shake - cfg.SHAKE_DECAY * dt);
 
     // Wave progression (time-based score-attack pacing).
     this.waveTime += dt;
@@ -76,6 +89,11 @@ export class Game {
     }
 
     const scale = this.waveScale();
+
+    // Drive black-hole rumble from how many are currently live.
+    let blackholes = 0;
+    for (const e of this.enemies) if (e.kind === "blackhole") blackholes++;
+    this.fx.setRumble?.(Math.min(1, blackholes));
 
     // Respawn handling.
     if (!this.player.alive) {
@@ -177,7 +195,27 @@ export class Game {
         radius: cfg.BULLET_RADIUS,
         life: cfg.BULLET_LIFE,
       });
+      // Subtle muzzle flash (kept dim since it's additive-composited).
+      const muzzle = v(p.pos.x + d.x * (p.radius + 4), p.pos.y + d.y * (p.radius + 4));
+      this.particles.push({
+        pos: muzzle,
+        vel: v(d.x * 60, d.y * 60),
+        life: 0.05,
+        maxLife: 0.05,
+        size: 1.6,
+        color: PALETTE.bullet,
+      });
+      this.fx.shoot?.();
+      this.addShake(cfg.SHAKE_FIRE);
     }
+  }
+
+  private addShake(a: number): void {
+    this.shake = Math.min(1, this.shake + a);
+  }
+
+  private addHitStop(s: number): void {
+    this.hitStop = Math.max(this.hitStop, s);
   }
 
   private respawn(): void {
@@ -197,6 +235,9 @@ export class Game {
     p.respawnTimer = cfg.RESPAWN_TIME;
     this.streak = 0;
     this.multiplier = 1;
+    this.fx.death?.();
+    this.addShake(cfg.SHAKE_DEATH);
+    this.addHitStop(cfg.HITSTOP_DEATH);
     // Clear enemies around the death point so respawn isn't instant death.
     const r2 = cfg.DEATH_CLEAR_RADIUS ** 2;
     this.enemies = this.enemies.filter((e) => {
@@ -270,6 +311,7 @@ export class Game {
         break;
     }
     this.enemies.push(e);
+    if (kind === "blackhole") this.fx.blackholeSpawn?.();
   }
 
   private edgePoint(): Vec {
@@ -456,7 +498,16 @@ export class Game {
 
     this.burst(e.pos, enemyColor(e.kind), cfg.KILL_PARTICLES);
 
-    if (e.kind === "splitter") this.spawnMinions(e.pos);
+    // Juice: kill feedback + splitter is extra crunchy.
+    this.fx.kill?.();
+    this.addShake(cfg.SHAKE_KILL);
+    this.addHitStop(cfg.HITSTOP_KILL);
+    if (e.kind === "splitter") {
+      this.spawnMinions(e.pos);
+      this.fx.split?.();
+      this.addShake(cfg.SHAKE_SPLIT);
+      this.addHitStop(cfg.HITSTOP_SPLIT);
+    }
   }
 
   private spawnMinions(at: Vec): void {

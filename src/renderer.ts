@@ -32,9 +32,16 @@ export class Renderer {
 
   render(game: Game): void {
     const { ctx, canvas } = this;
-    ctx.fillStyle = PALETTE.bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Screen shake offsets the whole view; trauma 0..1 scales max offset.
+    const ox = (Math.random() * 2 - 1) * game.shake * cfg.SHAKE_PX;
+    const oy = (Math.random() * 2 - 1) * game.shake * cfg.SHAKE_PX;
+    const m = cfg.SHAKE_PX + 24; // fill margin so shake never shows edges
+
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.fillStyle = PALETTE.bg;
+    ctx.fillRect(-m, -m, canvas.width + 2 * m, canvas.height + 2 * m);
     this.drawGrid();
 
     const g = this.glowCtx;
@@ -45,6 +52,7 @@ export class Renderer {
     ctx.globalCompositeOperation = "lighter";
     ctx.drawImage(this.glowCanvas, 0, 0, canvas.width, canvas.height);
     ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
   }
 
   private drawGrid(): void {

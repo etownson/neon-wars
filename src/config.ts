@@ -126,3 +126,16 @@ export const MAX_MULTIPLIER = 8; // x1, x2, x4, x8 (never exceeds)
 export const RESPAWN_TIME = 1.0; // seconds dead before respawn
 export const SPAWN_INVULN = 2.0; // seconds of invulnerability after respawn
 export const DEATH_CLEAR_RADIUS = 220; // clear enemies near spawn on death
+
+// ---- Juice (M2) ----
+export const SHAKE_DECAY = 6; // how fast shake trauma decays (/s)
+export const SHAKE_PX = 18; // max camera offset pixels at full trauma
+export const SHAKE_FIRE = 0.025;
+export const SHAKE_KILL = 0.12;
+export const SHAKE_SPLIT = 0.3;
+export const SHAKE_DEATH = 0.6;
+
+export const HITSTOP_KILL = 0.03; // seconds
+
+export const HITSTOP_SPLIT = 0.05;
+export const HITSTOP_DEATH = 0.14;

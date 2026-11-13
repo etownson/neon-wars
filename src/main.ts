@@ -6,8 +6,10 @@
 import { Input } from "./input";
 import { Game } from "./game";
 import { Renderer } from "./renderer";
+import { Sounds } from "./audio";
 
 const MAX_DT = 0.05; // cap to avoid physics blowups after a long stall/tab switch
+const sounds = new Sounds();
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const killsEl = document.getElementById("kills") as HTMLSpanElement;
@@ -19,8 +21,14 @@ const size = () => ({ w: window.innerWidth, h: window.innerHeight });
 
 let { w, h } = size();
 const input = new Input(canvas);
-const game = new Game(w, h);
+const game = new Game(w, h, sounds);
 const renderer = new Renderer(canvas);
+
+// Browsers block audio until a user gesture; unlock on any input.
+const unlockAudio = () => sounds.start();
+window.addEventListener("pointerdown", unlockAudio, { once: true });
+window.addEventListener("keydown", unlockAudio, { once: true });
+window.addEventListener("gamepadconnected", unlockAudio, { once: true });
 
 renderer.resize(w, h);
 
@@ -52,6 +60,8 @@ function frame(now: number): void {
   // Shoulder buttons step the wave (LB down / RB up).
   const wstep = input.getWaveStep();
   if (wstep !== 0) game.setWave(game.wave + wstep);
+
+  sounds.setIntensity(Math.min(1, (game.wave - 1) / 9));
 
   killsEl.textContent = String(game.kills);
   waveEl.textContent = String(game.wave);
