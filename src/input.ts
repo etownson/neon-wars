@@ -19,6 +19,8 @@ export class Input {
   private prevBombGp = false;
   private bombQueued = false;
   private prevAnyButton = false;
+  private prevMusicGp = false;
+  private musicQueued = false;
 
   constructor(canvas: HTMLCanvasElement) {
     window.addEventListener("gamepadconnected", (e) => {
@@ -31,10 +33,12 @@ export class Input {
     window.addEventListener("keydown", (e) => {
       this.keys.add(e.code);
       if (e.code === "KeyB" || e.code === "KeyF") this.bombQueued = true;
+      if (e.code === "KeyM") this.musicQueued = true;
     });
     window.addEventListener("keyup", (e) => {
       this.keys.delete(e.code);
       if (e.code === "KeyB" || e.code === "KeyF") this.bombQueued = false;
+      if (e.code === "KeyM") this.musicQueued = false;
     });
 
     window.addEventListener("pointerdown", () => (this.mouseDown = true));
@@ -114,6 +118,22 @@ export class Input {
     const edge = any && !this.prevAnyButton;
     this.prevAnyButton = any;
     return edge;
+  }
+
+  /** Edge-triggered music mute toggle: gamepad Y (index 3) or keyboard M. */
+  getMusicToggle(): boolean {
+    const gp = this.gpIndex === null ? undefined : navigator.getGamepads()[this.gpIndex];
+    if (gp) {
+      const b = gp.buttons[3]?.pressed ?? false;
+      const edge = b && !this.prevMusicGp;
+      this.prevMusicGp = b;
+      return edge;
+    }
+    if (this.musicQueued) {
+      this.musicQueued = false;
+      return true;
+    }
+    return false;
   }
 }
 

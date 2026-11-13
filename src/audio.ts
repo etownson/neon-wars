@@ -168,8 +168,20 @@ export class Sounds implements Fx {
 
   // ---- Music ----
 
+  private muted = false;
+
   setIntensity(x: number): void {
     this.intensity = Math.max(0, Math.min(1, x));
+  }
+
+  /** Toggle the music bed on/off (fades over ~0.3s). */
+  toggleMusic(): boolean {
+    if (!this.ctx) return false;
+    this.muted = !this.muted;
+    const t = this.ctx.currentTime;
+    this.musicGain.gain.cancelScheduledValues(t);
+    this.musicGain.gain.setTargetAtTime(this.muted ? 0 : 0.28, t, 0.15);
+    return this.muted;
   }
 
   private startMusic(): void {

@@ -99,6 +99,9 @@ function frame(now: number): void {
   // Any key (handler above) or any gamepad button restarts on game over.
   if (game.gameOver && input.getAnyPress()) game.reset();
 
+  // Y button / M key toggles the music bed.
+  if (input.getMusicToggle()) sounds.toggleMusic();
+
   sounds.setIntensity(Math.min(1, (game.wave - 1) / 9));
 
   // HUD (guarded: a missing element must never crash the game loop).
