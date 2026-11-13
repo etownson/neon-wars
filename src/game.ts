@@ -31,6 +31,8 @@ export class Game {
     this.height = height;
     this.player = {
       pos: v(width / 2, height / 2),
+      vel: v(0, 0),
+      grav: v(0, 0),
       radius: cfg.PLAYER_RADIUS,
       fireCooldown: 0,
       facing: 0,
@@ -44,6 +46,21 @@ export class Game {
     this.width = w;
     this.height = h;
     this.player.pos = v(clamp(this.player.pos.x, 0, w), clamp(this.player.pos.y, 0, h));
+  }
+
+  /** Dev helper: jump straight to a wave (clears the board) and revive the player. */
+  setWave(n: number): void {
+    this.wave = Math.max(1, Math.floor(n));
+    this.waveTime = 0;
+    this.enemies = [];
+    this.enemyBullets = [];
+    this.particles = [];
+    const p = this.player;
+    p.alive = true;
+    p.pos = v(this.width / 2, this.height / 2);
+    p.vel = v(0, 0);
+    p.grav = v(0, 0);
+    p.invuln = cfg.SPAWN_INVULN;
   }
 
   // ---- Main step ----
@@ -117,11 +134,36 @@ export class Game {
     p.pos.x = clamp(p.pos.x, cfg.WORLD_MARGIN, this.width - cfg.WORLD_MARGIN);
     p.pos.y = clamp(p.pos.y, cfg.WORLD_MARGIN, this.height - cfg.WORLD_MARGIN);
 
-    // Face the aim direction, else the movement direction.
+    // Smoothly settle stick velocity toward its target (critically damped → weight
+    // without jitter: accelerates and coasts, never snaps).
+    const desiredX = move.x * cfg.PLAYER_SPEED;
+    const desiredY = move.y * cfg.PLAYER_SPEED;
+    const k = 1 - Math.exp(-cfg.PLAYER_RESPONSE * dt);
+    p.vel.x += (desiredX - p.vel.x) * k;
+    p.vel.y += (desiredY - p.vel.y) * k;
+
+    // Gravity velocity from black holes: accumulates while pulled, damps when free.
+    p.grav.x *= Math.max(0, 1 - cfg.PLAYER_GRAV_DAMP * dt);
+    p.grav.y *= Math.max(0, 1 - cfg.PLAYER_GRAV_DAMP * dt);
+
+    // Integrate position, capping combined speed so gravity can't make us zoom.
+    const cx = p.vel.x + p.grav.x;
+    const cy = p.vel.y + p.grav.y;
+    const csp = Math.hypot(cx, cy);
+    if (csp > cfg.PLAYER_MAX_SPEED) {
+      const kc = cfg.PLAYER_MAX_SPEED / csp;
+      p.vel.x *= kc; p.vel.y *= kc;
+      p.grav.x *= kc; p.grav.y *= kc;
+    }
+    p.pos.x += (p.vel.x + p.grav.x) * dt;
+    p.pos.y += (p.vel.y + p.grav.y) * dt;
+    p.pos.x = clamp(p.pos.x, cfg.WORLD_MARGIN, this.width - cfg.WORLD_MARGIN);
+    p.pos.y = clamp(p.pos.y, cfg.WORLD_MARGIN, this.height - cfg.WORLD_MARGIN);
+
+    // Face the aim direction only. When the right stick idles, hold the last aim
+    // orientation rather than snapping to the movement direction.
     if (state.firing && (state.aimDir.x !== 0 || state.aimDir.y !== 0)) {
       p.facing = Math.atan2(state.aimDir.y, state.aimDir.x);
-    } else if (move.x !== 0 || move.y !== 0) {
-      p.facing = Math.atan2(move.y, move.x);
     }
 
     // Auto-fire while right stick is deflected.
@@ -145,6 +187,8 @@ export class Game {
     p.fireCooldown = 0;
     p.facing = 0;
     p.invuln = cfg.SPAWN_INVULN;
+    p.vel = v(0, 0);
+    p.grav = v(0, 0);
   }
 
   private die(): void {
@@ -370,14 +414,16 @@ export class Game {
 
   private pullPlayer(bh: Enemy, dt: number): void {
     const p = this.player;
-    const d = v(bh.pos.x - p.pos.x, bh.pos.y - p.pos.y);
-    const dist = Math.hypot(d.x, d.y);
-    if (dist < 1 || dist > cfg.BLACKHOLE_PULL_RADIUS) return;
+    if (!p.alive) return;
+    const dx = bh.pos.x - p.pos.x;
+    const dy = bh.pos.y - p.pos.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    if (dist > cfg.BLACKHOLE_PULL_RADIUS) return;
     const falloff = 1 - dist / cfg.BLACKHOLE_PULL_RADIUS;
-    const dir = norm(d);
-    const disp = cfg.BLACKHOLE_PULL_STRENGTH * falloff * dt * dt;
-    p.pos.x += dir.x * disp;
-    p.pos.y += dir.y * disp;
+    const a = cfg.BLACKHOLE_PULL_STRENGTH * falloff;
+    // Accumulate gravity velocity so pull genuinely accelerates you inward.
+    p.grav.x += (dx / dist) * a * dt;
+    p.grav.y += (dy / dist) * a * dt;
   }
 
   // ---- Combat resolution ----

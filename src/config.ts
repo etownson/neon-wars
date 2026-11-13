@@ -27,7 +27,12 @@ export const WORLD_MARGIN = 60; // keep entities inside canvas minus margin
 
 // Player
 export const PLAYER_RADIUS = 10;
-export const PLAYER_SPEED = 300; // px / s
+export const PLAYER_SPEED = 300; // px / s target stick speed
+// Critically-damped response rate: how quickly stick velocity settles toward target.
+// Higher = snappier, lower = heavier/sluggish. ~0.1s to 63% of full speed at 10.
+export const PLAYER_RESPONSE = 9;
+// Combined speed ceiling (stick velocity + black-hole gravity) to keep things floaty.
+export const PLAYER_MAX_SPEED = 360; // px / s
 export const PLAYER_HIT_DEADZONE = 0.25; // right stick magnitude below this is idle
 export const FIRE_RATE = 8; // shots / s while aiming
 
@@ -93,8 +98,10 @@ export const MINION_ACCEL = 420;
 
 // Black hole
 export const BLACKHOLE_RADIUS = 26;
-export const BLACKHOLE_PULL_RADIUS = 240;
-export const BLACKHOLE_PULL_STRENGTH = 320; // px/s^2
+export const BLACKHOLE_PULL_RADIUS = 280;
+export const BLACKHOLE_PULL_STRENGTH = 775; // px/s^2  (620 * 1.25)
+// How fast the player's accumulated pull decays when out of range (bigger = stickier).
+export const PLAYER_GRAV_DAMP = 3; // per second
 export const BLACKHOLE_LIFE = 9; // seconds then expires
 export const BLACKHOLE_DRIFT = 16; // slow random drift speed
 

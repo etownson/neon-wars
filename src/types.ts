@@ -3,6 +3,8 @@ import type { Vec } from "./vec";
 
 export interface Player {
   pos: Vec;
+  vel: Vec; // stick-driven momentum (accelerated toward target speed)
+  grav: Vec; // accumulated gravity velocity from black holes
   radius: number;
   fireCooldown: number;
   facing: number; // radians

@@ -14,6 +14,8 @@ export class Input {
   private mouseAim: Vec = v(640, 360);
   private mouseDown = false;
   private gpIndex: number | null = null;
+  private prevLB = false;
+  private prevRB = false;
 
   constructor(canvas: HTMLCanvasElement) {
     window.addEventListener("gamepadconnected", (e) => {
@@ -59,6 +61,18 @@ export class Input {
     const firing =
       this.mouseDown || this.keys.has("Space") || this.keys.has("KeyJ");
     return { move, aim: { firing, dir } };
+  }
+
+  /** Edge-triggered gamepad shoulder buttons: +1 for right (RB), -1 for left (LB). */
+  getWaveStep(): number {
+    const gp = this.gpIndex === null ? undefined : navigator.getGamepads()[this.gpIndex];
+    if (!gp) return 0;
+    const lb = gp.buttons[4]?.pressed ?? false;
+    const rb = gp.buttons[5]?.pressed ?? false;
+    const step = (rb && !this.prevRB ? 1 : 0) - (lb && !this.prevLB ? 1 : 0);
+    this.prevLB = lb;
+    this.prevRB = rb;
+    return step;
   }
 }
 
