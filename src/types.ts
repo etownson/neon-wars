@@ -5,7 +5,10 @@ export interface Player {
   pos: Vec;
   radius: number;
   fireCooldown: number;
+  facing: number; // radians
   alive: boolean;
+  invuln: number; // remaining invulnerability seconds after respawn
+  respawnTimer: number; // countdown while dead
 }
 
 export interface Bullet {
@@ -15,12 +18,18 @@ export interface Bullet {
   life: number;
 }
 
-export interface Chaser {
+export type EnemyKind = "chaser" | "shooter" | "splitter" | "blackhole" | "minion";
+
+// A unified enemy: fields are only meaningful for the kinds that use them.
+export interface Enemy {
+  kind: EnemyKind;
   pos: Vec;
   vel: Vec;
   radius: number;
   hp: number;
   spin: number; // cosmetic rotation
+  fireCooldown: number; // shooters
+  life: number; // black holes count down to expiry
 }
 
 export interface Particle {

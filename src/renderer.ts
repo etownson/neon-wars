@@ -2,6 +2,8 @@
 // Kept separate from the simulation so rendering can be swapped/optimized later.
 import * as cfg from "./config";
 import { PALETTE } from "./config";
+import type { Vec } from "./vec";
+import type { Enemy } from "./types";
 import type { Game } from "./game";
 
 export class Renderer {
@@ -35,8 +37,6 @@ export class Renderer {
 
     this.drawGrid();
 
-    // Everything with a glow draws into the offscreen buffer, which we then
-    // composite additively ("lighter") over the grid for a bloom feel.
     const g = this.glowCtx;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, this.glowCanvas.width, this.glowCanvas.height);
@@ -67,7 +67,7 @@ export class Renderer {
   }
 
   private drawGlowable(game: Game, g: CanvasRenderingContext2D): void {
-    // Bullets
+    // Player bullets.
     g.fillStyle = PALETTE.bullet;
     for (const b of game.bullets) {
       g.beginPath();
@@ -75,17 +75,21 @@ export class Renderer {
       g.fill();
     }
 
-    // Chasers (angular seeker)
-    g.strokeStyle = PALETTE.chaser;
-    g.fillStyle = PALETTE.chaserGlow;
-    for (const c of game.chasers) {
-      this.drawChaser(g, c.pos.x, c.pos.y, c.radius, c.spin);
+    // Enemy bullets.
+    g.fillStyle = PALETTE.enemyBullet;
+    for (const b of game.enemyBullets) {
+      g.beginPath();
+      g.arc(b.pos.x, b.pos.y, b.radius, 0, Math.PI * 2);
+      g.fill();
     }
 
-    // Particles
+    // Enemies.
+    for (const e of game.enemies) this.drawEnemy(g, e);
+
+    // Particles.
     for (const p of game.particles) {
-      const a = Math.max(0, p.life / p.maxLife);
-      g.globalAlpha = a;
+      const alpha = Math.max(0, p.life / p.maxLife);
+      g.globalAlpha = alpha;
       g.fillStyle = p.color;
       g.beginPath();
       g.arc(p.pos.x, p.pos.y, p.size, 0, Math.PI * 2);
@@ -93,22 +97,49 @@ export class Renderer {
     }
     g.globalAlpha = 1;
 
-    // Player
+    // Player (blinks while invulnerable after respawn).
     if (game.player.alive) {
-      this.drawPlayer(g, game.player.pos.x, game.player.pos.y);
+      if (game.player.invuln > 0 && Math.floor(game.time * 14) % 2 === 0) g.globalAlpha = 0.35;
+      this.drawPlayer(g, game.player);
+      g.globalAlpha = 1;
     }
   }
 
-  private drawChaser(
+  private drawEnemy(g: CanvasRenderingContext2D, e: Enemy): void {
+    switch (e.kind) {
+      case "chaser":
+        this.polygon(g, e.pos.x, e.pos.y, e.radius, e.spin, 5, PALETTE.chaser, PALETTE.chaserGlow);
+        break;
+      case "minion":
+        this.polygon(g, e.pos.x, e.pos.y, e.radius, e.spin, 3, PALETTE.minion, PALETTE.chaserGlow);
+        break;
+      case "splitter":
+        this.polygon(g, e.pos.x, e.pos.y, e.radius, e.spin, 6, PALETTE.splitter, PALETTE.splitterGlow);
+        break;
+      case "shooter":
+        this.drawShooter(g, e);
+        break;
+      case "blackhole":
+        this.drawBlackHole(g, e);
+        break;
+    }
+  }
+
+  private polygon(
     g: CanvasRenderingContext2D,
     x: number,
     y: number,
     r: number,
-    spin: number
+    spin: number,
+    sides: number,
+    fill: string,
+    glow: string
   ): void {
+    g.fillStyle = fill;
+    g.strokeStyle = glow;
     g.beginPath();
-    for (let i = 0; i < 5; i++) {
-      const a = spin + (i * Math.PI * 2) / 5;
+    for (let i = 0; i < sides; i++) {
+      const a = spin + (i * Math.PI * 2) / sides;
       const px = x + Math.cos(a) * r;
       const py = y + Math.sin(a) * r;
       if (i === 0) g.moveTo(px, py);
@@ -119,17 +150,72 @@ export class Renderer {
     g.stroke();
   }
 
-  private drawPlayer(g: CanvasRenderingContext2D, x: number, y: number): void {
+  private drawShooter(g: CanvasRenderingContext2D, e: Enemy): void {
+    // Orb body + rotating crosshair barrel to telegraph aim.
+    g.fillStyle = PALETTE.shooter;
+    g.strokeStyle = PALETTE.shooterGlow;
+    g.beginPath();
+    g.arc(e.pos.x, e.pos.y, e.radius, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+
+    // Turret notch.
+    const a = e.spin;
+    g.translate(e.pos.x, e.pos.y);
+    g.beginPath();
+    g.moveTo(Math.cos(a) * (e.radius - 2), Math.sin(a) * (e.radius - 2));
+    g.lineTo(Math.cos(a) * (e.radius + 6), Math.sin(a) * (e.radius + 6));
+    g.lineTo(Math.cos(a + 0.5) * (e.radius - 2), Math.sin(a + 0.5) * (e.radius - 2));
+    g.closePath();
+    g.fill();
+    g.translate(-e.pos.x, -e.pos.y);
+  }
+
+  private drawBlackHole(g: CanvasRenderingContext2D, e: Enemy): void {
+    // Dark vortex core + glowing magenta accretion ring (pulsing with life).
+    const pulse = 0.5 + 0.5 * Math.sin(e.spin * 2);
+    g.fillStyle = PALETTE.blackholeCore;
+    g.beginPath();
+    g.arc(e.pos.x, e.pos.y, e.radius * (0.6 + pulse * 0.15), 0, Math.PI * 2);
+    g.fill();
+
+    g.strokeStyle = PALETTE.blackhole;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(e.pos.x, e.pos.y, e.radius, 0, Math.PI * 2);
+    g.stroke();
+    g.lineWidth = 1;
+
+    // Accretion streaks (2 short spokes).
+    g.fillStyle = PALETTE.blackhole;
+    for (let i = 0; i < 3; i++) {
+      const a = e.spin + i * (Math.PI * 2) / 3;
+      g.beginPath();
+      g.arc(e.pos.x + Math.cos(a) * e.radius * 0.5,
+            e.pos.y + Math.sin(a) * e.radius * 0.5,
+            3 + pulse * 2, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+
+  private drawPlayer(
+    g: CanvasRenderingContext2D,
+    player: { pos: Vec; facing: number }
+  ): void {
+    const { x, y } = player.pos;
+    g.save();
+    g.translate(x, y);
+    g.rotate(player.facing);
     g.fillStyle = PALETTE.player;
     g.strokeStyle = PALETTE.playerGlow;
     const r = cfg.PLAYER_RADIUS;
-    // Dart/triangle shape pointing to the right (aim is drawn in input layer).
     g.beginPath();
-    g.moveTo(x + r * 1.4, y);
-    g.lineTo(x - r * 0.8, y - r * 0.8);
-    g.lineTo(x - r * 0.8, y + r * 0.8);
+    g.moveTo(r * 1.4, 0);
+    g.lineTo(-r * 0.8, -r * 0.8);
+    g.lineTo(-r * 0.8, r * 0.8);
     g.closePath();
     g.fill();
     g.stroke();
+    g.restore();
   }
 }

@@ -45,11 +45,41 @@
         text-align: center;
         white-space: nowrap;
       }
+
+      #hud {
+        display: flex;
+        gap: 18px;
+        align-items: baseline;
+      }
+
+      #hud .lbl {
+        color: #ff2a6d;
+        font-size: 11px;
+        letter-spacing: 1px;
+        margin-right: 4px;
+        text-shadow: 0 0 6px #ff2a6d;
+      }
+
+      #hud .val {
+        color: #00f0ff;
+        font-size: 18px;
+        text-shadow: 0 0 8px #00f0ff;
+      }
+
+      #hud .mult.on {
+        color: #ffb800;
+        text-shadow: 0 0 10px #ffb800;
+      }
     </style>
   </head>
   <body>
     <canvas id="game"></canvas>
-    <div id="hud">KILLS&nbsp;<span id="kills">0</span></div>
+    <div id="hud">
+      <div><span class="lbl">WAVE</span><span class="val" id="wave">1</span></div>
+      <div><span class="lbl">SCORE</span><span class="val" id="score">0</span></div>
+      <div><span class="lbl">MAX</span><span class="val" id="mult" class="mult">x1</span></div>
+      <div><span class="lbl">KILLS</span><span class="val" id="kills">0</span></div>
+    </div>
     <div id="hint">Left stick move · Right stick to aim &amp; auto-fire</div>
     <script type="module" src="/src/main.ts"></script>
   </body>

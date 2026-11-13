@@ -8,9 +8,17 @@ export const PALETTE = {
   player: "#05d9e8",
   playerGlow: "rgba(5, 217, 232, 0.55)",
   bullet: "#00f0ff",
-  chaser: "#ff2a6d",
-  chaserGlow: "rgba(255, 42, 109, 0.55)",
+  enemyBullet: "#ff2a6d",
+  // Enemy archetypes per design doc
+  chaser: "#00f0ff",
+  chaserGlow: "rgba(0, 240, 255, 0.55)",
+  shooter: "#ff2a6d",
+  shooterGlow: "rgba(255, 42, 109, 0.55)",
   splitter: "#ffb800",
+  splitterGlow: "rgba(255, 184, 0, 0.55)",
+  minion: "#05d9e8",
+  blackhole: "#ff2a6d",
+  blackholeCore: "#0a0a18",
   particle: "#00f0ff",
 } as const;
 
@@ -46,3 +54,68 @@ export const KILL_PARTICLES = 14;
 
 // Simulation
 export const FIXED_DT = 1 / 120; // physics timestep
+
+// ---- M3: Wave / scaling ----
+
+export const WAVE_TIME = 15; // seconds per wave
+
+export const ENEMY_CAP_BASE = 4;
+
+export const SPAWN_INTERVAL_BASE = 1.6;
+export const SPAWN_INTERVAL_MIN = 0.45;
+export const SPAWN_INTERVAL_STEP = 0.09; // faster spawning each wave
+
+export const WAVE_SCALE_STEP = 0.05; // per-wave speed/fire-rate multiplier
+export const WAVE_SCALE_MAX = 1.7;
+
+// ---- Enemy archetypes ----
+
+// Shooter
+export const SHOOTER_RADIUS = 13;
+export const SHOOTER_SPEED = 90; // lateral max speed
+export const SHOOTER_ACCEL = 240;
+export const SHOOTER_RANGE = 300; // preferred distance from player
+export const SHOOTER_RANGE_TOLERANCE = 40;
+export const SHOOTER_FIRE_INTERVAL = 2.1; // seconds between aimed bursts
+export const SHOOTER_STRAFE_BAND = 120; // strafe amplitude around range
+
+export const ENEMY_BULLET_RADIUS = 4;
+export const ENEMY_BULLET_SPEED = 210;
+export const ENEMY_BULLET_LIFE = 4; // seconds
+
+// Splitter
+export const SPLITTER_RADIUS = 14;
+export const SPLITTER_SPEED = 85;
+export const SPLITTER_CHILDREN = 3;
+export const MINION_RADIUS = 7;
+export const MINION_SPEED = 190;
+export const MINION_ACCEL = 420;
+
+// Black hole
+export const BLACKHOLE_RADIUS = 26;
+export const BLACKHOLE_PULL_RADIUS = 240;
+export const BLACKHOLE_PULL_STRENGTH = 320; // px/s^2
+export const BLACKHOLE_LIFE = 9; // seconds then expires
+export const BLACKHOLE_DRIFT = 16; // slow random drift speed
+
+// ---- Scoring & multiplier ----
+
+export const SCORE = {
+  chaser: 100 as number,
+  shooter: 150 as number,
+  splitter: 250 as number,
+  minion: 50 as number,
+  blackhole: 0 as number,
+};
+
+export type ScoreKey = keyof typeof SCORE;
+
+export const SPLIT_BONUS = 0.5; // +50% for triggering a splitter kill
+
+export const STREAK_PER_TIER = 5; // kills per multiplier tier
+export const MAX_MULTIPLIER = 8; // x1, x2, x4, x8 (never exceeds)
+
+// ---- Respawn / death ----
+export const RESPAWN_TIME = 1.0; // seconds dead before respawn
+export const SPAWN_INVULN = 2.0; // seconds of invulnerability after respawn
+export const DEATH_CLEAR_RADIUS = 220; // clear enemies near spawn on death

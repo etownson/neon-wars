@@ -6,6 +6,9 @@ import { FIXED_DT } from "./config";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const killsEl = document.getElementById("kills") as HTMLSpanElement;
+const waveEl = document.getElementById("wave") as HTMLSpanElement;
+const scoreEl = document.getElementById("score") as HTMLSpanElement;
+const multEl = document.getElementById("mult") as HTMLSpanElement;
 
 const size = () => ({ w: window.innerWidth, h: window.innerHeight });
 
@@ -43,6 +46,10 @@ function frame(now: number): void {
   }
 
   killsEl.textContent = String(game.kills);
+  waveEl.textContent = String(game.wave);
+  scoreEl.textContent = String(game.score);
+  multEl.textContent = `x${game.multiplier}`;
+  multEl.classList.toggle("on", game.multiplier > 1);
   renderer.render(game);
 
   requestAnimationFrame(frame);
