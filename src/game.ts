@@ -4,7 +4,7 @@
 import * as cfg from "./config";
 import { PALETTE, ScoreKey } from "./config";
 import { norm, v, Vec, clamp } from "./vec";
-import type { Bullet, Enemy, EnemyKind, Particle, Player, InputState } from "./types";
+import type { Bullet, Enemy, EnemyKind, Particle, Player, InputState, Pickup, PickupKind } from "./types";
 import type { Fx } from "./audio";
 
 export class Game {
@@ -26,6 +26,15 @@ export class Game {
 
   shake = 0; // screen-shake trauma 0..1
   hitStop = 0; // seconds of simulation freeze
+  flash = 0; // white-flash overlay 0..1 (bomb)
+
+  lives = cfg.LIVES_START;
+  bombs = cfg.BOMBS_START;
+  spreadTimer = 0; // seconds of spread rifle remaining
+  gameOver = false;
+  best = 0;
+
+  pickups: Pickup[] = [];
 
   width: number;
   height: number;
@@ -35,6 +44,7 @@ export class Game {
     this.fx = fx;
     this.width = width;
     this.height = height;
+    this.best = this.loadBest();
     this.player = {
       pos: v(width / 2, height / 2),
       vel: v(0, 0),
@@ -52,6 +62,57 @@ export class Game {
     this.width = w;
     this.height = h;
     this.player.pos = v(clamp(this.player.pos.x, 0, w), clamp(this.player.pos.y, 0, h));
+  }
+
+  // ---- Persistence ----
+
+  private loadBest(): number {
+    try {
+      const n = Number(localStorage.getItem(cfg.HIGH_SCORE_KEY));
+      return Number.isFinite(n) ? n : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  private updateBest(): void {
+    if (this.score <= this.best) return;
+    this.best = this.score;
+    try {
+      localStorage.setItem(cfg.HIGH_SCORE_KEY, String(this.best));
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  /** Fresh run: keep the persistent best, reset everything else. */
+  reset(): void {
+    this.score = 0;
+    this.kills = 0;
+    this.streak = 0;
+    this.multiplier = 1;
+    this.wave = 1;
+    this.waveTime = 0;
+    this.spawnTimer = 1.0;
+    this.lives = cfg.LIVES_START;
+    this.bombs = cfg.BOMBS_START;
+    this.spreadTimer = 0;
+    this.gameOver = false;
+    this.shake = 0;
+    this.hitStop = 0;
+    this.flash = 0;
+    this.enemies = [];
+    this.enemyBullets = [];
+    this.bullets = [];
+    this.particles = [];
+    this.pickups = [];
+    const p = this.player;
+    p.pos = v(this.width / 2, this.height / 2);
+    p.vel = v(0, 0);
+    p.grav = v(0, 0);
+    p.alive = true;
+    p.invuln = cfg.SPAWN_INVULN;
+    p.fireCooldown = 0;
   }
 
   /** Dev helper: jump straight to a wave (clears the board) and revive the player. */
@@ -78,8 +139,14 @@ export class Game {
       return;
     }
 
+    // Game over: freeze simulation and show the final state.
+    if (this.gameOver) return;
+
     this.time += dt;
     this.shake = Math.max(0, this.shake - cfg.SHAKE_DECAY * dt);
+    this.flash = Math.max(0, this.flash - dt * 3);
+    this.spreadTimer = Math.max(0, this.spreadTimer - dt);
+    this.updateBest();
 
     // Wave progression (time-based score-attack pacing).
     this.waveTime += dt;
@@ -124,6 +191,7 @@ export class Game {
     this.handlePlayerShots();
     this.handleEnemyShotsVsPlayer();
     this.handleContact();
+    this.updatePickups(dt);
 
     for (const p of this.particles) {
       p.pos.x += p.vel.x * dt;
@@ -132,6 +200,7 @@ export class Game {
     }
 
     // Cleanup.
+    this.pickups = this.pickups.filter((p) => p.life > 0);
     this.bullets = this.bullets.filter((b) => b.life > 0);
     this.enemyBullets = this.enemyBullets.filter((b) => b.life > 0);
     this.enemies = this.enemies.filter(
@@ -188,17 +257,21 @@ export class Game {
     p.fireCooldown -= dt;
     if (state.firing && p.fireCooldown <= 0) {
       p.fireCooldown = 1 / cfg.FIRE_RATE;
+      const baseAngle = Math.atan2(state.aimDir.y, state.aimDir.x);
+      if (this.spreadTimer > 0) {
+        // Spread rifle: fire a fan of shots.
+        const n = cfg.SPREAD_BULLETS;
+        for (let i = 0; i < n; i++) {
+          const off = -cfg.SPREAD_ANGLE / 2 + (cfg.SPREAD_ANGLE * i) / (n - 1);
+          this.fireBullet(baseAngle + off);
+        }
+      } else {
+        this.fireBullet(baseAngle);
+      }
+      // Muzzle flash (kept dim since it's additive-composited).
       const d = state.aimDir;
-      this.bullets.push({
-        pos: v(p.pos.x + d.x * (p.radius + cfg.BULLET_RADIUS), p.pos.y + d.y * (p.radius + cfg.BULLET_RADIUS)),
-        vel: v(d.x * cfg.BULLET_SPEED, d.y * cfg.BULLET_SPEED),
-        radius: cfg.BULLET_RADIUS,
-        life: cfg.BULLET_LIFE,
-      });
-      // Subtle muzzle flash (kept dim since it's additive-composited).
-      const muzzle = v(p.pos.x + d.x * (p.radius + 4), p.pos.y + d.y * (p.radius + 4));
       this.particles.push({
-        pos: muzzle,
+        pos: v(p.pos.x + d.x * (p.radius + 4), p.pos.y + d.y * (p.radius + 4)),
         vel: v(d.x * 60, d.y * 60),
         life: 0.05,
         maxLife: 0.05,
@@ -210,12 +283,85 @@ export class Game {
     }
   }
 
+  private fireBullet(angle: number): void {
+    this.bullets.push({
+      pos: v(this.player.pos.x + Math.cos(angle) * (this.player.radius + cfg.BULLET_RADIUS), this.player.pos.y + Math.sin(angle) * (this.player.radius + cfg.BULLET_RADIUS)),
+      vel: v(Math.cos(angle) * cfg.BULLET_SPEED, Math.sin(angle) * cfg.BULLET_SPEED),
+      radius: cfg.BULLET_RADIUS,
+      life: cfg.BULLET_LIFE,
+    });
+  }
+
   private addShake(a: number): void {
     this.shake = Math.min(1, this.shake + a);
   }
 
   private addHitStop(s: number): void {
     this.hitStop = Math.max(this.hitStop, s);
+  }
+
+  /** Detonate a carried bomb: clear the board with score, flash and boom. */
+  detonateBomb(): void {
+    if (this.gameOver || !this.player.alive || this.bombs <= 0) return;
+    this.bombs -= 1;
+    this.fx.boom?.();
+    this.addShake(cfg.BOMB_SHAKE);
+    this.addHitStop(cfg.BOMB_HITSTOP);
+    this.flash = cfg.BOMB_FLASH;
+    for (const e of this.enemies) {
+      const base = cfg.SCORE[e.kind as ScoreKey];
+      this.score += Math.round(base * this.multiplier);
+      this.kills += 1;
+      this.streak += 1;
+      const tiers = Math.min(Math.floor(this.streak / cfg.STREAK_PER_TIER), Math.log2(cfg.MAX_MULTIPLIER));
+      this.multiplier = Math.pow(2, Math.floor(tiers));
+      this.burst(e.pos, enemyColor(e.kind), 8);
+    }
+    this.enemies = [];
+    this.enemyBullets = [];
+    this.updateBest();
+  }
+
+  // ---- Pickups ----
+
+  private spawnPickup(at: Vec): void {
+    if (this.gameOver) return;
+    if (this.pickups.length >= cfg.PICKUP_MAX_ON_FIELD) return;
+    // Weighted kind: spread is commonest, life rarest.
+    const r = Math.random();
+    const kind: PickupKind = r < 0.5 ? "spread" : r < 0.8 ? "bomb" : "life";
+    this.pickups.push({ kind, pos: v(at.x, at.y), life: cfg.PICKUP_DESPAWN, spin: Math.random() * 6.28 });
+  }
+
+  private updatePickups(dt: number): void {
+    const p = this.player;
+    for (const pu of this.pickups) {
+      pu.life -= dt;
+      pu.spin += dt * 2;
+      if (p.alive && dist2(pu.pos, p.pos) < (cfg.PICKUP_RADIUS + p.radius) ** 2) {
+        this.collectPickup(pu);
+        pu.life = 0; // removed in cleanup
+        continue;
+      }
+    }
+  }
+
+  private collectPickup(pu: Pickup): void {
+    switch (pu.kind) {
+      case "spread":
+        this.spreadTimer = cfg.SPREAD_DURATION;
+        this.fx.collect?.();
+        break;
+      case "bomb":
+        if (this.bombs < cfg.BOMBS_MAX) this.bombs += 1;
+        this.fx.collect?.();
+        break;
+      case "life":
+        if (this.lives < cfg.LIVES_MAX) this.lives += 1;
+        this.fx.extraLife?.();
+        break;
+    }
+    this.burst(pu.pos, PALETTE.bullet, 10);
   }
 
   private respawn(): void {
@@ -232,9 +378,9 @@ export class Game {
   private die(): void {
     const p = this.player;
     p.alive = false;
-    p.respawnTimer = cfg.RESPAWN_TIME;
     this.streak = 0;
     this.multiplier = 1;
+    this.spreadTimer = 0;
     this.fx.death?.();
     this.addShake(cfg.SHAKE_DEATH);
     this.addHitStop(cfg.HITSTOP_DEATH);
@@ -247,6 +393,14 @@ export class Game {
       }
       return true;
     });
+
+    this.lives -= 1;
+    this.updateBest();
+    if (this.lives <= 0) {
+      this.gameOver = true; // frozen; HUD/main shows game-over and restart
+      return;
+    }
+    p.respawnTimer = cfg.RESPAWN_TIME;
   }
 
   // ---- Spawning / waves ----
@@ -508,6 +662,9 @@ export class Game {
       this.addShake(cfg.SHAKE_SPLIT);
       this.addHitStop(cfg.HITSTOP_SPLIT);
     }
+
+    // Chance to drop a pickup.
+    if (Math.random() < cfg.PICKUP_SPAWN_CHANCE) this.spawnPickup(e.pos);
   }
 
   private spawnMinions(at: Vec): void {

@@ -12,6 +12,9 @@ export interface Fx {
   death?(): void;
   blackholeSpawn?(): void;
   setRumble?(level: number): void;
+  collect?(): void;
+  boom?(): void;
+  extraLife?(): void;
 }
 
 export class Sounds implements Fx {
@@ -111,6 +114,25 @@ export class Sounds implements Fx {
     g.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
     o.connect(g); g.connect(this.sfxGain);
     o.start(start); o.stop(start + 0.52);
+  }
+
+  collect(): void {
+    // Cheerful two-note pickup chime.
+    this.tone(660, 0.09, "sine", 0.3, 660, false);
+    this.tone(990, 0.14, "sine", 0.3, 990, false);
+  }
+
+  extraLife(): void {
+    // Rising arpeggio for an extra life.
+    this.tone(523, 0.1, "sine", 0.3, 523, false);
+    window.setTimeout(() => this.tone(659, 0.1, "sine", 0.3, 659, false), 80);
+    window.setTimeout(() => this.tone(784, 0.2, "sine", 0.3, 784, false), 160);
+  }
+
+  boom(): void {
+    // Huge low boom + wash.
+    this.tone(120, 0.5, "sine", 0.9, 40, false);
+    this.noise(0.4, 0.7, 500);
   }
 
   /** Level 0..1 drives the drone; fade in/out smoothly and swell while present. */

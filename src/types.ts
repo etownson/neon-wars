@@ -43,6 +43,15 @@ export interface Particle {
   color: string;
 }
 
+export type PickupKind = "spread" | "bomb" | "life";
+
+export interface Pickup {
+  kind: PickupKind;
+  pos: Vec;
+  life: number; // seconds until despawn
+  spin: number;
+}
+
 export interface InputState {
   move: Vec;
   firing: boolean;

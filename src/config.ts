@@ -139,3 +139,28 @@ export const HITSTOP_KILL = 0.03; // seconds
 
 export const HITSTOP_SPLIT = 0.05;
 export const HITSTOP_DEATH = 0.14;
+
+// ---- Lives & game over (M5) ----
+export const LIVES_START = 3;
+export const LIVES_MAX = 6;
+
+// ---- Bomb ----
+export const BOMBS_START = 0;
+export const BOMBS_MAX = 3;
+export const BOMB_SHAKE = 1.0;
+export const BOMB_HITSTOP = 0.12;
+export const BOMB_FLASH = 1.0;
+
+// ---- Spread rifle (timed power-up) ----
+export const SPREAD_DURATION = 14; // seconds active
+
+export const SPREAD_BULLETS = 5;
+export const SPREAD_ANGLE = 0.9; // radians total fan width
+
+// ---- Pickups ----
+export const PICKUP_RADIUS = 12;
+export const PICKUP_DESPAWN = 10; // seconds before a pickup fades
+export const PICKUP_MAX_ON_FIELD = 4;
+export const PICKUP_SPAWN_CHANCE = 0.08; // per destroy, chance to drop any pickup
+
+export const HIGH_SCORE_KEY = "neon-wars-best";

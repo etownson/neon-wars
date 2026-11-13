@@ -7,15 +7,33 @@ import { Input } from "./input";
 import { Game } from "./game";
 import { Renderer } from "./renderer";
 import { Sounds } from "./audio";
+import * as cfg from "./config";
 
 const MAX_DT = 0.05; // cap to avoid physics blowups after a long stall/tab switch
 const sounds = new Sounds();
+
+// Surface any runtime error on-screen so a silent freeze is diagnosable
+// (dev aid; remove for production).
+window.addEventListener("error", (e) => {
+  const hint = document.getElementById("hint");
+  if (hint) hint.textContent = "ERROR: " + ((e.error && e.error.stack) || e.message || "unknown");
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const hint = document.getElementById("hint");
+  if (hint) hint.textContent = "ERROR: " + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
+});
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const killsEl = document.getElementById("kills") as HTMLSpanElement;
 const waveEl = document.getElementById("wave") as HTMLSpanElement;
 const scoreEl = document.getElementById("score") as HTMLSpanElement;
 const multEl = document.getElementById("mult") as HTMLSpanElement;
+const hiEl = document.getElementById("hi") as HTMLSpanElement;
+const bombsEl = document.getElementById("bombs") as HTMLSpanElement;
+const livesEl = document.getElementById("lives") as HTMLDivElement;
+const spreadEl = document.getElementById("spread") as HTMLSpanElement;
+const gameoverEl = document.getElementById("gameover") as HTMLDivElement;
+const finalScoreEl = document.getElementById("finalScore") as HTMLSpanElement;
 
 const size = () => ({ w: window.innerWidth, h: window.innerHeight });
 
@@ -45,6 +63,22 @@ window.addEventListener("keydown", (e) => {
   if (n >= 1 && n <= 15) game.setWave(n);
 });
 
+// Restart a finished run from any key / click.
+const tryRestart = () => {
+  if (game.gameOver) game.reset();
+};
+window.addEventListener("keydown", tryRestart);
+window.addEventListener("pointerdown", tryRestart);
+
+let lastLives = game.lives;
+let gameOverShown = false;
+
+function renderLives(n: number): void {
+  livesEl.innerHTML = Array.from({ length: cfg.LIVES_MAX }, (_, i) =>
+    `<span class="dot${i < n ? "" : " dead"}"></span>`
+  ).join("");
+}
+
 let last = performance.now();
 
 function frame(now: number): void {
@@ -57,17 +91,52 @@ function frame(now: number): void {
     dt
   );
 
-  // Shoulder buttons step the wave (LB down / RB up).
+  // Shoulder buttons step the wave (LB down / RB up); B/fire detonates a bomb.
   const wstep = input.getWaveStep();
   if (wstep !== 0) game.setWave(game.wave + wstep);
+  if (input.getBombPressed()) game.detonateBomb();
+
+  // Any key (handler above) or any gamepad button restarts on game over.
+  if (game.gameOver && input.getAnyPress()) game.reset();
 
   sounds.setIntensity(Math.min(1, (game.wave - 1) / 9));
 
-  killsEl.textContent = String(game.kills);
-  waveEl.textContent = String(game.wave);
-  scoreEl.textContent = String(game.score);
-  multEl.textContent = `x${game.multiplier}`;
-  multEl.classList.toggle("on", game.multiplier > 1);
+  // HUD (guarded: a missing element must never crash the game loop).
+  if (killsEl) killsEl.textContent = String(game.kills);
+  if (waveEl) waveEl.textContent = String(game.wave);
+  if (scoreEl) scoreEl.textContent = String(game.score);
+  if (multEl) {
+    multEl.textContent = `x${game.multiplier}`;
+    multEl.classList.toggle("on", game.multiplier > 1);
+  }
+  if (hiEl) hiEl.textContent = String(game.best);
+  if (bombsEl) bombsEl.textContent = String(game.bombs);
+  if (game.lives !== lastLives && livesEl) {
+    renderLives(game.lives);
+    lastLives = game.lives;
+  }
+  if (spreadEl) {
+    if (game.spreadTimer > 0) {
+      spreadEl.textContent = `SPREAD ${Math.ceil(game.spreadTimer)}s`;
+      spreadEl.classList.remove("off");
+    } else {
+      spreadEl.textContent = "";
+      spreadEl.classList.add("off");
+    }
+  }
+
+  // Game over overlay.
+  if (game.gameOver) {
+    if (!gameOverShown && gameoverEl && finalScoreEl) {
+      finalScoreEl.textContent = String(game.score);
+      gameoverEl.style.display = "flex";
+      gameOverShown = true;
+    }
+  } else if (gameOverShown && gameoverEl) {
+    gameoverEl.style.display = "none";
+    gameOverShown = false;
+  }
+
   renderer.render(game);
 
   requestAnimationFrame(frame);

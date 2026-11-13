@@ -3,7 +3,7 @@
 import * as cfg from "./config";
 import { PALETTE } from "./config";
 import type { Vec } from "./vec";
-import type { Enemy } from "./types";
+import type { Enemy, Pickup } from "./types";
 import type { Game } from "./game";
 
 export class Renderer {
@@ -53,6 +53,12 @@ export class Renderer {
     ctx.drawImage(this.glowCanvas, 0, 0, canvas.width, canvas.height);
     ctx.globalCompositeOperation = "source-over";
     ctx.restore();
+
+    // White flash overlay (bombs) — drawn in screen space, not shaken.
+    if (game.flash > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${(game.flash * 0.55).toFixed(3)})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
   }
 
   private drawGrid(): void {
@@ -93,6 +99,9 @@ export class Renderer {
 
     // Enemies.
     for (const e of game.enemies) this.drawEnemy(g, e);
+
+    // Pickups.
+    for (const pu of game.pickups) this.drawPickup(g, pu);
 
     // Particles.
     for (const p of game.particles) {
@@ -156,6 +165,40 @@ export class Renderer {
     g.closePath();
     g.fill();
     g.stroke();
+  }
+
+  private drawPickup(g: CanvasRenderingContext2D, pu: Pickup): void {
+    const bob = Math.sin(pu.spin * 1.4) * 2;
+    const x = pu.pos.x;
+    const y = pu.pos.y + bob;
+    const fade = Math.min(1, pu.life / 1.5); // fade out near despawn
+    g.globalAlpha = 0.35 + 0.65 * fade * (0.55 + 0.45 * Math.sin(pu.spin)); // shimmer
+    const r = cfg.PICKUP_RADIUS;
+
+    g.save();
+    g.translate(x, y);
+    g.rotate(pu.spin);
+    if (pu.kind === "spread") {
+      // Double-barrel (spread rifle) — two dots, cyan.
+      g.fillStyle = PALETTE.bullet;
+      g.beginPath(); g.arc(-r * 0.3, 0, 4, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(-r * 0.75, 0, 3, 0, Math.PI * 2); g.fill();
+      g.fillRect(-4, -r, 8, r * 2);
+    } else if (pu.kind === "bomb") {
+      // Ring bomb — amber.
+      g.strokeStyle = PALETTE.splitter;
+      g.lineWidth = 3;
+      g.beginPath(); g.arc(0, 0, 6, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = PALETTE.splitter;
+      g.beginPath(); g.arc(0, 0, 2.5, 0, Math.PI * 2); g.fill();
+    } else {
+      // Extra life — plus/heart, magenta.
+      g.fillStyle = PALETTE.shooter;
+      g.fillRect(-2, -7, 4, 14);
+      g.fillRect(-7, -2, 14, 4);
+    }
+    g.restore();
+    g.globalAlpha = 1;
   }
 
   private drawShooter(g: CanvasRenderingContext2D, e: Enemy): void {

@@ -16,6 +16,9 @@ export class Input {
   private gpIndex: number | null = null;
   private prevLB = false;
   private prevRB = false;
+  private prevBombGp = false;
+  private bombQueued = false;
+  private prevAnyButton = false;
 
   constructor(canvas: HTMLCanvasElement) {
     window.addEventListener("gamepadconnected", (e) => {
@@ -25,8 +28,14 @@ export class Input {
       if (this.gpIndex === e.gamepad.index) this.gpIndex = null;
     });
 
-    window.addEventListener("keydown", (e) => this.keys.add(e.code));
-    window.addEventListener("keyup", (e) => this.keys.delete(e.code));
+    window.addEventListener("keydown", (e) => {
+      this.keys.add(e.code);
+      if (e.code === "KeyB" || e.code === "KeyF") this.bombQueued = true;
+    });
+    window.addEventListener("keyup", (e) => {
+      this.keys.delete(e.code);
+      if (e.code === "KeyB" || e.code === "KeyF") this.bombQueued = false;
+    });
 
     window.addEventListener("pointerdown", () => (this.mouseDown = true));
     window.addEventListener("pointerup", () => (this.mouseDown = false));
@@ -73,6 +82,38 @@ export class Input {
     this.prevLB = lb;
     this.prevRB = rb;
     return step;
+  }
+
+  /** Edge-triggered bomb button: gamepad B (index 1) or keyboard B/F. */
+  getBombPressed(): boolean {
+    const gp = this.gpIndex === null ? undefined : navigator.getGamepads()[this.gpIndex];
+    if (gp) {
+      const b = gp.buttons[1]?.pressed ?? false;
+      const edge = b && !this.prevBombGp;
+      this.prevBombGp = b;
+      return edge;
+    }
+    if (this.bombQueued) {
+      this.bombQueued = false;
+      return true;
+    }
+    return false;
+  }
+
+  /** Edge-triggered press of any gamepad button (used to restart on game over). */
+  getAnyPress(): boolean {
+    const gp = this.gpIndex === null ? undefined : navigator.getGamepads()[this.gpIndex];
+    if (!gp) return false;
+    let any = false;
+    for (const b of gp.buttons) {
+      if (b.pressed) {
+        any = true;
+        break;
+      }
+    }
+    const edge = any && !this.prevAnyButton;
+    this.prevAnyButton = any;
+    return edge;
   }
 }
 
