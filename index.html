@@ -60,6 +60,21 @@
         text-shadow: 0 0 6px #ff2a6d;
       }
 
+      #hud .val.pulse {
+        animation: wavepulse 0.45s ease-out;
+      }
+
+      @keyframes wavepulse {
+        0% {
+          color: #ffffff;
+          text-shadow: 0 0 18px #00f0ff;
+        }
+        100% {
+          color: #00f0ff;
+          text-shadow: 0 0 8px #00f0ff;
+        }
+      }
+
       #hud .val {
         color: #00f0ff;
         font-size: 18px;
@@ -69,6 +84,19 @@
       #hud .mult.on {
         color: #ffb800;
         text-shadow: 0 0 10px #ffb800;
+      }
+
+      #hud .mult.max {
+        color: #ffd700;
+        text-shadow: 0 0 14px #ffd700;
+        animation: goldpulse 1s infinite;
+      }
+
+      @keyframes goldpulse {
+        50% {
+          color: #fff2a8;
+          text-shadow: 0 0 22px #ffd700;
+        }
       }
 
       #hud .spread {
@@ -127,6 +155,28 @@
         animation: blink 1s infinite;
       }
 
+      #paused {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        background: rgba(5, 5, 16, 0.55);
+        color: #00f0ff;
+        text-shadow: 0 0 14px #00f0ff;
+        font-family: inherit;
+        font-size: 42px;
+        letter-spacing: 4px;
+      }
+
+      #paused .sub {
+        margin-top: 14px;
+        font-size: 15px;
+        color: #ff2a6d;
+        text-shadow: 0 0 8px #ff2a6d;
+      }
+
       @keyframes blink {
         50% { opacity: 0.25; }
       }
@@ -138,7 +188,7 @@
       <div><span class="lbl">WAVE</span><span class="val" id="wave">1</span></div>
       <div><span class="lbl">SCORE</span><span class="val" id="score">0</span></div>
       <div><span class="lbl">HI</span><span class="val" id="hi">0</span></div>
-      <div><span class="lbl">MAX</span><span class="val" id="mult" class="mult">x1</span></div>
+      <div><span class="lbl">MULT</span><span class="val" id="mult" class="mult">x1</span></div>
       <div><span class="lbl">BOMBS</span><span class="val" id="bombs">0</span></div>
       <div class="lives" id="lives"></div>
       <div><span class="spread off" id="spread"></span></div>
@@ -148,7 +198,11 @@
       <div class="sub">SCORE&nbsp;<span id="finalScore">0</span></div>
       <div class="restart">Press any key / button to restart</div>
     </div>
-    <div id="hint">Move left stick · aim right stick · B bomb · Y mute music · 0-9/LB-RB wave</div>
+    <div id="paused">
+      <div>PAUSED</div>
+      <div class="sub">Press Start / Esc to resume</div>
+    </div>
+    <div id="hint">Move left stick · aim right stick · B bomb · Y mute music · Start pause · 0-9/LB-RB wave</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

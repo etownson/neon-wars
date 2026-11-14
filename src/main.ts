@@ -34,6 +34,7 @@ const livesEl = document.getElementById("lives") as HTMLDivElement;
 const spreadEl = document.getElementById("spread") as HTMLSpanElement;
 const gameoverEl = document.getElementById("gameover") as HTMLDivElement;
 const finalScoreEl = document.getElementById("finalScore") as HTMLSpanElement;
+const pausedEl = document.getElementById("paused") as HTMLDivElement;
 
 const size = () => ({ w: window.innerWidth, h: window.innerHeight });
 
@@ -71,6 +72,8 @@ window.addEventListener("keydown", tryRestart);
 window.addEventListener("pointerdown", tryRestart);
 
 let lastLives = game.lives;
+let lastWave = game.wave;
+let wavePulseTimer = 0;
 let gameOverShown = false;
 
 function renderLives(n: number): void {
@@ -102,7 +105,27 @@ function frame(now: number): void {
   // Y button / M key toggles the music bed.
   if (input.getMusicToggle()) sounds.toggleMusic();
 
+  // Start/menu button (or Esc/P) toggles pause.
+  if (input.getPauseToggle() && !game.gameOver) {
+    game.paused = !game.paused;
+    if (game.paused) sounds.setRumble(0); // drop the drone while paused
+  }
+
   sounds.setIntensity(Math.min(1, (game.wave - 1) / 9));
+
+  // Tight wave-up acknowledgement: sting sound + brief HUD pulse.
+  if (game.wave > lastWave) {
+    lastWave = game.wave;
+    sounds.waveUp();
+    wavePulseTimer = 0.5;
+  } else if (game.wave < lastWave) {
+    lastWave = game.wave; // reset or jump down — track, but no ack
+  }
+  if (wavePulseTimer > 0) {
+    wavePulseTimer -= dt;
+    waveEl?.classList.add("pulse");
+    if (wavePulseTimer <= 0) waveEl?.classList.remove("pulse");
+  }
 
   // HUD (guarded: a missing element must never crash the game loop).
   if (killsEl) killsEl.textContent = String(game.kills);
@@ -111,6 +134,7 @@ function frame(now: number): void {
   if (multEl) {
     multEl.textContent = `x${game.multiplier}`;
     multEl.classList.toggle("on", game.multiplier > 1);
+    multEl.classList.toggle("max", game.multiplier >= cfg.MAX_MULTIPLIER);
   }
   if (hiEl) hiEl.textContent = String(game.best);
   if (bombsEl) bombsEl.textContent = String(game.bombs);
@@ -128,8 +152,14 @@ function frame(now: number): void {
     }
   }
 
+  // Pause overlay.
+  if (pausedEl) pausedEl.style.display = game.paused ? "flex" : "none";
+
   // Game over overlay.
   if (game.gameOver) {
+    // Simulation is frozen, so ease the screen shake out gently instead of
+    // leaving it jittering at full death-trauma forever.
+    game.shake = Math.max(0, game.shake - dt * 2.2);
     if (!gameOverShown && gameoverEl && finalScoreEl) {
       finalScoreEl.textContent = String(game.score);
       gameoverEl.style.display = "flex";

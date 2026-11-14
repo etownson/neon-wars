@@ -21,6 +21,8 @@ export class Input {
   private prevAnyButton = false;
   private prevMusicGp = false;
   private musicQueued = false;
+  private prevPauseGp = false;
+  private pauseQueued = false;
 
   constructor(canvas: HTMLCanvasElement) {
     window.addEventListener("gamepadconnected", (e) => {
@@ -34,11 +36,13 @@ export class Input {
       this.keys.add(e.code);
       if (e.code === "KeyB" || e.code === "KeyF") this.bombQueued = true;
       if (e.code === "KeyM") this.musicQueued = true;
+      if (e.code === "Escape" || e.code === "KeyP") this.pauseQueued = true;
     });
     window.addEventListener("keyup", (e) => {
       this.keys.delete(e.code);
       if (e.code === "KeyB" || e.code === "KeyF") this.bombQueued = false;
       if (e.code === "KeyM") this.musicQueued = false;
+      if (e.code === "Escape" || e.code === "KeyP") this.pauseQueued = false;
     });
 
     window.addEventListener("pointerdown", () => (this.mouseDown = true));
@@ -131,6 +135,22 @@ export class Input {
     }
     if (this.musicQueued) {
       this.musicQueued = false;
+      return true;
+    }
+    return false;
+  }
+
+  /** Edge-triggered pause toggle: gamepad Start/menu (index 9) or Esc/P. */
+  getPauseToggle(): boolean {
+    const gp = this.gpIndex === null ? undefined : navigator.getGamepads()[this.gpIndex];
+    if (gp) {
+      const b = gp.buttons[9]?.pressed ?? false;
+      const edge = b && !this.prevPauseGp;
+      this.prevPauseGp = b;
+      return edge;
+    }
+    if (this.pauseQueued) {
+      this.pauseQueued = false;
       return true;
     }
     return false;

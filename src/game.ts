@@ -32,6 +32,7 @@ export class Game {
   bombs = cfg.BOMBS_START;
   spreadTimer = 0; // seconds of spread rifle remaining
   gameOver = false;
+  paused = false;
   best = 0;
 
   pickups: Pickup[] = [];
@@ -85,6 +86,12 @@ export class Game {
     }
   }
 
+  private computeMultiplier(streak: number): number {
+    if (streak <= 0) return 1;
+    const raw = 1 + Math.floor((cfg.MAX_MULTIPLIER - 1) * Math.pow(streak / cfg.MULT_STREAK_FOR_MAX, cfg.MULT_CURVE_POWER));
+    return Math.min(cfg.MAX_MULTIPLIER, raw);
+  }
+
   /** Fresh run: keep the persistent best, reset everything else. */
   reset(): void {
     this.score = 0;
@@ -98,6 +105,7 @@ export class Game {
     this.bombs = cfg.BOMBS_START;
     this.spreadTimer = 0;
     this.gameOver = false;
+    this.paused = false;
     this.shake = 0;
     this.hitStop = 0;
     this.flash = 0;
@@ -119,6 +127,7 @@ export class Game {
   setWave(n: number): void {
     this.wave = Math.max(1, Math.floor(n));
     this.waveTime = 0;
+    this.paused = false;
     this.enemies = [];
     this.enemyBullets = [];
     this.particles = [];
@@ -139,8 +148,8 @@ export class Game {
       return;
     }
 
-    // Game over: freeze simulation and show the final state.
-    if (this.gameOver) return;
+    // Pause / game over: freeze the simulation.
+    if (this.paused || this.gameOver) return;
 
     this.time += dt;
     this.shake = Math.max(0, this.shake - cfg.SHAKE_DECAY * dt);
@@ -302,7 +311,7 @@ export class Game {
 
   /** Detonate a carried bomb: clear the board with score, flash and boom. */
   detonateBomb(): void {
-    if (this.gameOver || !this.player.alive || this.bombs <= 0) return;
+    if (this.paused || this.gameOver || !this.player.alive || this.bombs <= 0) return;
     this.bombs -= 1;
     this.fx.boom?.();
     this.addShake(cfg.BOMB_SHAKE);
@@ -313,8 +322,7 @@ export class Game {
       this.score += Math.round(base * this.multiplier);
       this.kills += 1;
       this.streak += 1;
-      const tiers = Math.min(Math.floor(this.streak / cfg.STREAK_PER_TIER), Math.log2(cfg.MAX_MULTIPLIER));
-      this.multiplier = Math.pow(2, Math.floor(tiers));
+      this.multiplier = this.computeMultiplier(this.streak);
       this.burst(e.pos, enemyColor(e.kind), 8);
     }
     this.enemies = [];
@@ -647,8 +655,7 @@ export class Game {
 
     this.kills += 1;
     this.streak += 1;
-    const tiers = Math.min(Math.floor(this.streak / cfg.STREAK_PER_TIER), Math.log2(cfg.MAX_MULTIPLIER));
-    this.multiplier = Math.pow(2, Math.floor(tiers));
+    this.multiplier = this.computeMultiplier(this.streak);
 
     this.burst(e.pos, enemyColor(e.kind), cfg.KILL_PARTICLES);
 

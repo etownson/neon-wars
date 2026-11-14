@@ -15,6 +15,7 @@ export interface Fx {
   collect?(): void;
   boom?(): void;
   extraLife?(): void;
+  waveUp?(): void;
 }
 
 export class Sounds implements Fx {
@@ -133,6 +134,12 @@ export class Sounds implements Fx {
     // Huge low boom + wash.
     this.tone(120, 0.5, "sine", 0.9, 40, false);
     this.noise(0.4, 0.7, 500);
+  }
+
+  waveUp(): void {
+    // Tight two-note step up — clean and short, no tail.
+    this.tone(523, 0.09, "square", 0.3, 523, false);
+    window.setTimeout(() => this.tone(784, 0.14, "square", 0.3, 784, false), 70);
   }
 
   /** Level 0..1 drives the drone; fade in/out smoothly and swell while present. */

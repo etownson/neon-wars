@@ -119,8 +119,10 @@ export type ScoreKey = keyof typeof SCORE;
 
 export const SPLIT_BONUS = 0.5; // +50% for triggering a splitter kill
 
-export const STREAK_PER_TIER = 5; // kills per multiplier tier
-export const MAX_MULTIPLIER = 8; // x1, x2, x4, x8 (never exceeds)
+export const MAX_MULTIPLIER = 20; // hard cap
+// Curved multiplier: mult = 1 + floor((MAX-1) * (streak/FOR_MAX)^POWER)
+export const MULT_STREAK_FOR_MAX = 50; // kills needed to reach the cap
+export const MULT_CURVE_POWER = 0.9; // ~linear = steady climb, slower early gains
 
 // ---- Respawn / death ----
 export const RESPAWN_TIME = 1.0; // seconds dead before respawn
