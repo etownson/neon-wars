@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Browser twin-stick arena shooter — Neon Wars M1 core loop prototype",
+  "description": "Browser twin-stick arena shooter — Neon Wars",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

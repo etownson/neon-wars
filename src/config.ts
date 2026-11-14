@@ -1,4 +1,4 @@
-// Central tuning constants for the M1 prototype.
+// Central tuning constants for Neon Wars.
 // Keep everything tunable here so the "feel" can be iterated cheaply.
 
 export const PALETTE = {
@@ -49,7 +49,7 @@ export const CHASER_HP = 1;
 
 // Spawning
 export const SPAWN_INTERVAL = 1.6; // seconds between spawns
-export const MAX_ENEMIES = 6; // cap for M1
+export const MAX_ENEMIES = 6; // unused: wave spawning (below) replaced this cap
 export const SPAWN_MIN_DIST = 240; // min distance from player at spawn
 
 // Particle

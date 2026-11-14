@@ -1,5 +1,5 @@
 // Input layer: gamepad (primary) with a keyboard + mouse fallback so the
-// prototype is playable during development without a controller plugged in.
+// game is playable during development without a controller plugged in.
 import { stick, Vec, v } from "./vec";
 
 export interface AimInput {
