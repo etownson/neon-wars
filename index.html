@@ -296,6 +296,105 @@
         text-shadow: 0 0 8px #ff2a6d;
       }
 
+      /* ---- Start screen ---- */
+
+      #start {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        overflow-y: auto;
+        padding: 24px;
+        box-sizing: border-box;
+        background: rgba(5, 5, 16, 0.86);
+        color: #c9f6ff;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      #start h1 {
+        margin: 0;
+        font-size: clamp(40px, 8vw, 72px);
+        letter-spacing: 8px;
+        color: #00f0ff;
+        text-shadow: 0 0 18px #00f0ff, 0 0 42px rgba(0, 240, 255, 0.5);
+      }
+
+      #start .blurb {
+        max-width: 640px;
+        margin: 10px 0 22px;
+        text-align: center;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      #start .blurb b {
+        color: #ffb800;
+        text-shadow: 0 0 8px #ffb800;
+      }
+
+      #start .cols {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 34px;
+        justify-content: center;
+        max-width: 980px;
+      }
+
+      #start section {
+        width: 280px;
+      }
+
+      #start h2 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        letter-spacing: 3px;
+        color: #ff2a6d;
+        text-shadow: 0 0 8px #ff2a6d;
+      }
+
+      #start .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 9px;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      #start .row svg {
+        flex: none;
+        width: 30px;
+        height: 30px;
+        overflow: visible;
+      }
+
+      #start .row b {
+        color: #fff;
+      }
+
+      #start .keys {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 6px 14px;
+        font-size: 14px;
+      }
+
+      #start .keys span:nth-child(odd) {
+        color: #00f0ff;
+      }
+
+      #start .go {
+        margin-top: 26px;
+        font-size: 16px;
+        letter-spacing: 2px;
+        color: #ffb800;
+        text-shadow: 0 0 8px #ffb800;
+        animation: blink 1s infinite;
+      }
+
       @keyframes blink {
         50% { opacity: 0.25; }
       }
@@ -337,7 +436,65 @@
       <div>PAUSED</div>
       <div class="sub">Press Start / Esc to resume</div>
     </div>
-    <div id="hint">Move left stick · aim right stick · B bomb · Y mute music · Start pause · 0-9/LB-RB wave</div>
+    <div id="start">
+      <h1>NEON WARS</h1>
+      <p class="blurb">
+        Survive an endless swarm of angry geometry. Every 15 seconds a new wave
+        arrives, faster and meaner than the last. Chain kills without dying to
+        build your multiplier as high as <b>x20</b>. Losing a life resets it.
+      </p>
+      <div class="cols">
+        <section>
+          <h2>CONTROLS</h2>
+          <div class="keys">
+            <span>Move</span><span>Left stick · WASD / arrows</span>
+            <span>Aim &amp; fire</span><span>Right stick · mouse (hold button or Space)</span>
+            <span>Bomb</span><span>B button · B / F key</span>
+            <span>Pause</span><span>Start · Esc / P</span>
+            <span>Music</span><span>Y button · M key</span>
+          </div>
+        </section>
+        <section>
+          <h2>PICKUPS</h2>
+          <div class="row">
+            <svg viewBox="-15 -15 30 30" color="#00f0ff" style="filter:drop-shadow(0 0 4px currentColor)"><g fill="#00f0ff" transform="rotate(-30)"><rect x="-4" y="-12" width="8" height="24"/><circle cx="-4" cy="0" r="4"/><circle cx="-9" cy="0" r="3"/></g></svg>
+            <span><b>Spread rifle</b>: fires a five-shot fan for 14 seconds.</span>
+          </div>
+          <div class="row">
+            <svg viewBox="-15 -15 30 30" color="#ffb800" style="filter:drop-shadow(0 0 4px currentColor)"><circle r="6" fill="none" stroke="#ffb800" stroke-width="3"/><circle r="2.5" fill="#ffb800"/></svg>
+            <span><b>Bomb</b>: hold up to 3. Detonate one to wipe out every enemy on screen.</span>
+          </div>
+          <div class="row">
+            <svg viewBox="-15 -15 30 30" color="#ff2a6d" style="filter:drop-shadow(0 0 4px currentColor)"><g fill="#ff2a6d"><rect x="-2" y="-7" width="4" height="14"/><rect x="-7" y="-2" width="14" height="4"/></g></svg>
+            <span><b>Extra life</b>: one more ship, up to 6.</span>
+          </div>
+          <div class="row" style="color:#8fa3c8;font-size:13px">
+            Destroyed enemies sometimes drop these. Grab them before they fade.
+          </div>
+        </section>
+        <section>
+          <h2>ENEMIES</h2>
+          <div class="row">
+            <svg viewBox="-15 -15 30 30" color="#00f0ff" style="filter:drop-shadow(0 0 4px currentColor)"><polygon points="0,-11 10.5,-3.4 6.5,8.9 -6.5,8.9 -10.5,-3.4" fill="#00f0ff"/></svg>
+            <span><b>Chaser</b>: comes straight for you.</span>
+          </div>
+          <div class="row">
+            <svg viewBox="-15 -15 30 30" color="#ff2a6d" style="filter:drop-shadow(0 0 4px currentColor)"><circle r="11" fill="#ff2a6d"/></svg>
+            <span><b>Shooter</b>: keeps its distance and fires back.</span>
+          </div>
+          <div class="row">
+            <svg viewBox="-15 -15 30 30" color="#ffb800" style="filter:drop-shadow(0 0 4px currentColor)"><polygon points="11,0 5.5,9.5 -5.5,9.5 -11,0 -5.5,-9.5 5.5,-9.5" fill="#ffb800"/></svg>
+            <span><b>Splitter</b>: bursts into small fast darts. Bonus points.</span>
+          </div>
+          <div class="row">
+            <svg viewBox="-15 -15 30 30" color="#ff2a6d" style="filter:drop-shadow(0 0 4px currentColor)"><circle r="13" fill="#0a0a18" stroke="#ff2a6d" stroke-width="2"/><g fill="#ff2a6d"><circle cx="-3" cy="-5" r="2.5"/><circle cx="5" cy="1" r="2.5"/><circle cx="-4" cy="5" r="2.5"/></g></svg>
+            <span><b>Black hole</b>: can't be shot. Pulls you in until it collapses. A bomb clears it.</span>
+          </div>
+        </section>
+      </div>
+      <div class="go">Press any key / button to start</div>
+    </div>
+    <div id="hint">Move left stick · aim right stick · B bomb · Y mute music · Start pause</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

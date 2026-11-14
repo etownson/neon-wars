@@ -18,16 +18,21 @@ import {
 const MAX_DT = 0.05; // cap to avoid physics blowups after a long stall/tab switch
 const sounds = new Sounds();
 
-// Surface any runtime error on-screen so a silent freeze is diagnosable
-// (dev aid; remove for production).
-window.addEventListener("error", (e) => {
-  const hint = document.getElementById("hint");
-  if (hint) hint.textContent = "ERROR: " + ((e.error && e.error.stack) || e.message || "unknown");
-});
-window.addEventListener("unhandledrejection", (e) => {
-  const hint = document.getElementById("hint");
-  if (hint) hint.textContent = "ERROR: " + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
-});
+// Debug options (wave skipping, on-screen error readout) are only enabled when
+// the page URL carries a debug flag, e.g. ?debug or ?debug=1.
+const DEBUG = new URLSearchParams(window.location.search).has("debug");
+
+if (DEBUG) {
+  // Surface any runtime error on-screen so a silent freeze is diagnosable.
+  window.addEventListener("error", (e) => {
+    const hint = document.getElementById("hint");
+    if (hint) hint.textContent = "ERROR: " + ((e.error && e.error.stack) || e.message || "unknown");
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const hint = document.getElementById("hint");
+    if (hint) hint.textContent = "ERROR: " + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
+  });
+}
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const killsEl = document.getElementById("kills") as HTMLSpanElement;
@@ -68,8 +73,30 @@ window.addEventListener("resize", () => {
   game.resize(w, h);
 });
 
-// Dev shortcut: number keys jump straight to a wave (0 = wave 10).
+// ---- Start screen ----
+// The run doesn't begin until the player presses a key, clicks, or presses a
+// gamepad button, so first-time players can read the briefing first.
+const startEl = document.getElementById("start") as HTMLDivElement | null;
+const hintEl = document.getElementById("hint");
+let started = false;
+
+if (hintEl && DEBUG) hintEl.textContent += " · 0-9/LB-RB wave (debug)";
+
+function beginRun(): void {
+  if (started) return;
+  started = true;
+  if (startEl) startEl.style.display = "none";
+  game.reset();
+  last = performance.now(); // don't count time spent on the start screen
+}
 window.addEventListener("keydown", (e) => {
+  if (!started && !e.repeat) beginRun();
+});
+startEl?.addEventListener("pointerdown", beginRun);
+
+// Debug shortcut: number keys jump straight to a wave (0 = wave 10).
+window.addEventListener("keydown", (e) => {
+  if (!DEBUG || !started) return;
   if (!/^[0-9]$/.test(e.key)) return;
   const n = e.key === "0" ? 10 : Number(e.key);
   if (n >= 1 && n <= 15) game.setWave(n);
@@ -190,15 +217,27 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, MAX_DT);
   last = now;
 
+  if (!started) {
+    // Drain edge-triggered inputs so nothing carries over into the run.
+    input.getPauseToggle();
+    input.getBombPressed();
+    input.getWaveStep();
+    if (input.getMusicToggle()) sounds.toggleMusic();
+    if (input.getAnyPress()) beginRun();
+    renderer.render(game);
+    requestAnimationFrame(frame);
+    return;
+  }
+
   const raw = input.read(game.player.pos);
   game.step(
     { move: raw.move, firing: raw.aim.firing, aimDir: raw.aim.dir },
     dt
   );
 
-  // Shoulder buttons step the wave (LB down / RB up); B/fire detonates a bomb.
+  // Debug: shoulder buttons step the wave (LB down / RB up). B/F detonates a bomb.
   const wstep = input.getWaveStep();
-  if (wstep !== 0) game.setWave(game.wave + wstep);
+  if (DEBUG && wstep !== 0) game.setWave(game.wave + wstep);
   if (input.getBombPressed()) game.detonateBomb();
 
   // Any key (handler above) or any gamepad button restarts on game over.

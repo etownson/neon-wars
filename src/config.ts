@@ -49,7 +49,6 @@ export const CHASER_HP = 1;
 
 // Spawning
 export const SPAWN_INTERVAL = 1.6; // seconds between spawns
-export const MAX_ENEMIES = 6; // unused: wave spawning (below) replaced this cap
 export const SPAWN_MIN_DIST = 240; // min distance from player at spawn
 
 // Particle
@@ -129,7 +128,7 @@ export const RESPAWN_TIME = 1.0; // seconds dead before respawn
 export const SPAWN_INVULN = 2.0; // seconds of invulnerability after respawn
 export const DEATH_CLEAR_RADIUS = 220; // clear enemies near spawn on death
 
-// ---- Juice (M2) ----
+// ---- Juice ----
 export const SHAKE_DECAY = 6; // how fast shake trauma decays (/s)
 export const SHAKE_PX = 18; // max camera offset pixels at full trauma
 export const SHAKE_FIRE = 0.025;
@@ -142,7 +141,7 @@ export const HITSTOP_KILL = 0.03; // seconds
 export const HITSTOP_SPLIT = 0.05;
 export const HITSTOP_DEATH = 0.14;
 
-// ---- Lives & game over (M5) ----
+// ---- Lives & game over ----
 export const LIVES_START = 3;
 export const LIVES_MAX = 6;
 
