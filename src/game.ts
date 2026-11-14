@@ -6,6 +6,7 @@ import { PALETTE, ScoreKey } from "./config";
 import { norm, v, Vec, clamp } from "./vec";
 import type { Bullet, Enemy, EnemyKind, Particle, Player, InputState, Pickup, PickupKind } from "./types";
 import type { Fx } from "./audio";
+import type { Rng } from "./rng";
 
 export class Game {
   player: Player;
@@ -40,9 +41,11 @@ export class Game {
   width: number;
   height: number;
   private fx: Fx;
+  private rng: Rng;
 
-  constructor(width: number, height: number, fx: Fx = {}) {
+  constructor(width: number, height: number, fx: Fx = {}, rng: Rng = Math.random) {
     this.fx = fx;
+    this.rng = rng;
     this.width = width;
     this.height = height;
     this.best = this.loadBest();
@@ -336,9 +339,9 @@ export class Game {
     if (this.gameOver) return;
     if (this.pickups.length >= cfg.PICKUP_MAX_ON_FIELD) return;
     // Weighted kind: spread is commonest, life rarest.
-    const r = Math.random();
+    const r = this.rng();
     const kind: PickupKind = r < 0.5 ? "spread" : r < 0.8 ? "bomb" : "life";
-    this.pickups.push({ kind, pos: v(at.x, at.y), life: cfg.PICKUP_DESPAWN, spin: Math.random() * 6.28 });
+    this.pickups.push({ kind, pos: v(at.x, at.y), life: cfg.PICKUP_DESPAWN, spin: this.rng() * 6.28 });
   }
 
   private updatePickups(dt: number): void {
@@ -439,14 +442,14 @@ export class Game {
   private pickKind(): EnemyKind {
     const w = this.wave;
     if (w < 4) return "chaser";
-    if (w < 7) return Math.random() < 0.7 ? "chaser" : "shooter";
+    if (w < 7) return this.rng() < 0.7 ? "chaser" : "shooter";
     if (w < 9) {
-      const r = Math.random();
+      const r = this.rng();
       if (r < 0.45) return "chaser";
       if (r < 0.75) return "shooter";
       return "splitter";
     }
-    const r = Math.random();
+    const r = this.rng();
     if (r < 0.4) return "chaser";
     if (r < 0.65) return "shooter";
     if (r < 0.85) return "splitter";
@@ -455,19 +458,19 @@ export class Game {
 
   private spawnEnemy(kind: EnemyKind): void {
     const pos = this.edgePoint();
-    const e: Enemy = { kind: "chaser", pos, vel: v(0, 0), radius: 10, hp: 1, spin: Math.random() * 6.28, fireCooldown: 0, life: 0 };
+    const e: Enemy = { kind: "chaser", pos, vel: v(0, 0), radius: 10, hp: 1, spin: this.rng() * 6.28, fireCooldown: 0, life: 0 };
     switch (kind) {
       case "chaser":
         e.kind = "chaser"; e.radius = cfg.CHASER_RADIUS; break;
       case "minion":
         e.kind = "minion"; e.radius = cfg.MINION_RADIUS; break;
       case "shooter":
-        e.kind = "shooter"; e.radius = cfg.SHOOTER_RADIUS; e.fireCooldown = 1.2; e.life = 2 + Math.random() * 2; break;
+        e.kind = "shooter"; e.radius = cfg.SHOOTER_RADIUS; e.fireCooldown = 1.2; e.life = 2 + this.rng() * 2; break;
       case "splitter":
         e.kind = "splitter"; e.radius = cfg.SPLITTER_RADIUS; break;
       case "blackhole":
         e.kind = "blackhole"; e.radius = cfg.BLACKHOLE_RADIUS; e.hp = Infinity; e.life = cfg.BLACKHOLE_LIFE;
-        e.vel = v((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+        e.vel = v((this.rng() - 0.5) * 2, (this.rng() - 0.5) * 2);
         const l = Math.hypot(e.vel.x, e.vel.y) || 1;
         e.vel = v((e.vel.x / l) * cfg.BLACKHOLE_DRIFT, (e.vel.y / l) * cfg.BLACKHOLE_DRIFT);
         break;
@@ -478,22 +481,22 @@ export class Game {
 
   private edgePoint(): Vec {
     if (!this.player.alive) {
-      const s = Math.floor(Math.random() * 4);
-      if (s === 0) return v(Math.random() * this.width, cfg.WORLD_MARGIN);
-      if (s === 1) return v(Math.random() * this.width, this.height - cfg.WORLD_MARGIN);
-      if (s === 2) return v(cfg.WORLD_MARGIN, Math.random() * this.height);
-      return v(this.width - cfg.WORLD_MARGIN, Math.random() * this.height);
+      const s = Math.floor(this.rng() * 4);
+      if (s === 0) return v(this.rng() * this.width, cfg.WORLD_MARGIN);
+      if (s === 1) return v(this.rng() * this.width, this.height - cfg.WORLD_MARGIN);
+      if (s === 2) return v(cfg.WORLD_MARGIN, this.rng() * this.height);
+      return v(this.width - cfg.WORLD_MARGIN, this.rng() * this.height);
     }
     for (let tries = 0; tries < 8; tries++) {
-      const side = Math.floor(Math.random() * 4);
+      const side = Math.floor(this.rng() * 4);
       let pos: Vec;
-      if (side === 0) pos = v(Math.random() * this.width, cfg.WORLD_MARGIN);
-      else if (side === 1) pos = v(Math.random() * this.width, this.height - cfg.WORLD_MARGIN);
-      else if (side === 2) pos = v(cfg.WORLD_MARGIN, Math.random() * this.height);
-      else pos = v(this.width - cfg.WORLD_MARGIN, Math.random() * this.height);
+      if (side === 0) pos = v(this.rng() * this.width, cfg.WORLD_MARGIN);
+      else if (side === 1) pos = v(this.rng() * this.width, this.height - cfg.WORLD_MARGIN);
+      else if (side === 2) pos = v(cfg.WORLD_MARGIN, this.rng() * this.height);
+      else pos = v(this.width - cfg.WORLD_MARGIN, this.rng() * this.height);
       if (Math.hypot(pos.x - this.player.pos.x, pos.y - this.player.pos.y) > cfg.SPAWN_MIN_DIST) return pos;
     }
-    return v(Math.random() * this.width, cfg.WORLD_MARGIN);
+    return v(this.rng() * this.width, cfg.WORLD_MARGIN);
   }
 
   // ---- Enemy behavior ----
@@ -552,7 +555,7 @@ export class Game {
     // Strafe direction flips on a timer (e.life doubles as the timer here).
     e.life -= dt;
     if (e.life <= 0) {
-      e.life = 2 + Math.random() * 2;
+      e.life = 2 + this.rng() * 2;
       e.spin += Math.PI; // flips strafe sign via sin
     }
     const strafeSign = Math.sin(e.spin) >= 0 ? 1 : -1;
@@ -671,12 +674,12 @@ export class Game {
     }
 
     // Chance to drop a pickup.
-    if (Math.random() < cfg.PICKUP_SPAWN_CHANCE) this.spawnPickup(e.pos);
+    if (this.rng() < cfg.PICKUP_SPAWN_CHANCE) this.spawnPickup(e.pos);
   }
 
   private spawnMinions(at: Vec): void {
     for (let i = 0; i < cfg.SPLITTER_CHILDREN; i++) {
-      const a = Math.random() * Math.PI * 2;
+      const a = this.rng() * Math.PI * 2;
       const off = cfg.SPLITTER_RADIUS + 4;
       const vel = v(Math.cos(a) * cfg.MINION_SPEED * 0.5, Math.sin(a) * cfg.MINION_SPEED * 0.5);
       this.enemies.push({
@@ -685,7 +688,7 @@ export class Game {
         vel,
         radius: cfg.MINION_RADIUS,
         hp: 1,
-        spin: Math.random() * 6.28,
+        spin: this.rng() * 6.28,
         fireCooldown: 0,
         life: 0,
       });
@@ -718,14 +721,14 @@ export class Game {
 
   private burst(origin: Vec, color: string, count: number): void {
     for (let i = 0; i < count; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const sp = cfg.PARTICLE_SPEED * (0.4 + Math.random() * 1.2);
+      const a = this.rng() * Math.PI * 2;
+      const sp = cfg.PARTICLE_SPEED * (0.4 + this.rng() * 1.2);
       this.particles.push({
         pos: v(origin.x, origin.y),
         vel: v(Math.cos(a) * sp, Math.sin(a) * sp),
-        life: cfg.PARTICLE_LIFE * (0.5 + Math.random()),
+        life: cfg.PARTICLE_LIFE * (0.5 + this.rng()),
         maxLife: cfg.PARTICLE_LIFE,
-        size: 1.5 + Math.random() * 2.5,
+        size: 1.5 + this.rng() * 2.5,
         color,
       });
     }
