@@ -8,6 +8,12 @@ import { Game } from "./game";
 import { Renderer } from "./renderer";
 import { Sounds } from "./audio";
 import * as cfg from "./config";
+import {
+  leaderboardEnabled,
+  submitScore,
+  fetchTopScores,
+  type LeaderboardEntry,
+} from "./leaderboard";
 
 const MAX_DT = 0.05; // cap to avoid physics blowups after a long stall/tab switch
 const sounds = new Sounds();
@@ -35,6 +41,11 @@ const spreadEl = document.getElementById("spread") as HTMLSpanElement;
 const gameoverEl = document.getElementById("gameover") as HTMLDivElement;
 const finalScoreEl = document.getElementById("finalScore") as HTMLSpanElement;
 const pausedEl = document.getElementById("paused") as HTMLDivElement;
+const entryEl = document.getElementById("entry") as HTMLDivElement;
+const initialsEl = document.getElementById("entryInitials") as HTMLInputElement;
+const submitBtn = document.getElementById("submitScore") as HTMLButtonElement;
+const entryStatusEl = document.getElementById("entryStatus") as HTMLSpanElement;
+const boardListEl = document.getElementById("boardList") as HTMLElement;
 
 const size = () => ({ w: window.innerWidth, h: window.innerHeight });
 
@@ -64,12 +75,103 @@ window.addEventListener("keydown", (e) => {
   if (n >= 1 && n <= 15) game.setWave(n);
 });
 
-// Restart a finished run from any key / click.
+// ---- Leaderboard UI (game over) ----
+
+// Restarting while the player is typing initials would wipe the run out from
+// under them. Track whether the initials field is the active element.
+const typingInitials = () => document.activeElement === initialsEl;
+
+const escapeHtml = (s: string): string =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+function renderLeaderboard(entries: LeaderboardEntry[]): void {
+  if (!boardListEl) return;
+  if (entries.length === 0) {
+    boardListEl.innerHTML =
+      `<li class="empty">${leaderboardEnabled() ? "No scores yet" : "Set up Supabase to enable"}</li>`;
+    return;
+  }
+  boardListEl.innerHTML = entries
+    .map(
+      (e, i) =>
+        `<li><span class="rank">${i + 1}</span>` +
+        `<span class="ini">${escapeHtml(e.initials)}</span>` +
+        `<span class="pts">${e.score}</span></li>`
+    )
+    .join("");
+}
+
+async function refreshLeaderboard(): Promise<void> {
+  const entries = await fetchTopScores(10);
+  renderLeaderboard(entries);
+}
+
+// Only offer initials entry when the leaderboard is configured and the run
+// scored non-zero points; otherwise hide the form entirely.
+function showEntryForm(score: number): void {
+  if (!entryEl) return;
+  const show = leaderboardEnabled() && score > 0;
+  entryEl.style.display = show ? "flex" : "none";
+  if (show) {
+    initialsEl.disabled = false;
+    submitBtn.disabled = false;
+    entryStatusEl.textContent = "";
+    initialsEl.value = "";
+  }
+}
+
+// Enter submits; typing is sanitized to 1-3 uppercase letters/digits.
+initialsEl?.addEventListener("input", () => {
+  initialsEl.value = initialsEl.value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 3);
+});
+initialsEl?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitBtn.click();
+  }
+});
+
+submitBtn?.addEventListener("click", async () => {
+  const initials = initialsEl.value.trim();
+  if (!/^[A-Z0-9]{1,3}$/.test(initials)) {
+    entryStatusEl.textContent = "1-3 letters";
+    return;
+  }
+  submitBtn.disabled = true;
+  entryStatusEl.textContent = "Submitting…";
+  const res = await submitScore(initials, game.score, game.wave);
+  if (res.ok) {
+    entryStatusEl.textContent = "Saved!";
+    initialsEl.disabled = true;
+    await refreshLeaderboard();
+  } else {
+    entryStatusEl.textContent = res.error + " — try again";
+    submitBtn.disabled = false;
+  }
+});
+
+// ---- Restart a finished run from any key, or a click on the overlay ----
+
 const tryRestart = () => {
-  if (game.gameOver) game.reset();
+  if (typingInitials()) return; // don't hijack the initials field
+  if (game.gameOver) {
+    initialsEl?.blur(); // release any stuck focus so the next run is clean
+    game.reset();
+  }
 };
 window.addEventListener("keydown", tryRestart);
-window.addEventListener("pointerdown", tryRestart);
+
+gameoverEl?.addEventListener("pointerdown", (e) => {
+  if (!game.gameOver) return;
+  // Clicks inside the entry form (input / submit / status) shouldn't restart.
+  const target = e.target as HTMLElement | null;
+  if (target && target.closest && target.closest("#entry")) return;
+  initialsEl?.blur();
+  game.reset();
+});
 
 let lastLives = game.lives;
 let lastWave = game.wave;
@@ -160,9 +262,15 @@ function frame(now: number): void {
     // Simulation is frozen, so ease the screen shake out gently instead of
     // leaving it jittering at full death-trauma forever.
     game.shake = Math.max(0, game.shake - dt * 2.2);
+    // The rumble drone is driven per-frame inside game.step(), which returns
+    // early once the run is over — so fade it out here or it would linger
+    // forever (mirror of the pause handling).
+    sounds.setRumble(0);
     if (!gameOverShown && gameoverEl && finalScoreEl) {
       finalScoreEl.textContent = String(game.score);
       gameoverEl.style.display = "flex";
+      showEntryForm(game.score);
+      void refreshLeaderboard();
       gameOverShown = true;
     }
   } else if (gameOverShown && gameoverEl) {
