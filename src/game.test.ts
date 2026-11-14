@@ -4,7 +4,7 @@ import { Game } from "./game";
 import { FixedStepper } from "./fixedStep";
 import { makeRng } from "./rng";
 import * as cfg from "./config";
-import type { InputState } from "./types";
+import type { Enemy, InputState } from "./types";
 
 const W = 1280;
 const H = 720;
@@ -101,5 +101,42 @@ describe("fixed timestep", () => {
     const s = new FixedStepper(cfg.FIXED_DT, 12);
     expect(s.advance(10)).toBe(12);
     expect(s.advance(0)).toBe(0);
+  });
+});
+
+describe("bomb", () => {
+  function chaserAt(x: number, y: number): Enemy {
+    return { kind: "chaser", pos: { x, y }, vel: { x: 0, y: 0 }, radius: cfg.CHASER_RADIUS, hp: cfg.ENEMY_HP, spin: 0, fireCooldown: 0, life: 0 };
+  }
+
+  it("scores every enemy at the multiplier in effect when detonated", () => {
+    const g = new Game(W, H, {}, makeRng(1));
+    g.reset();
+    g.streak = 10;
+    g.multiplier = 5;
+    g.bombs = 1;
+    g.enemies = [chaserAt(100, 100), chaserAt(200, 100), chaserAt(300, 100), chaserAt(400, 100)];
+    g.detonateBomb();
+    expect(g.score).toBe(4 * cfg.SCORE.chaser * 5);
+    expect(g.enemies.length).toBe(0);
+    expect(g.bombs).toBe(0);
+    expect(g.streak).toBe(14);
+    expect(g.multiplier).toBeGreaterThan(5); // streak still builds afterward
+  });
+});
+
+describe("spawn mix", () => {
+  it("applies the latest SPAWN_MIX entry for the wave", () => {
+    const g = new Game(W, H, {}, makeRng(3));
+    g.reset();
+    const seen = (wave: number): Set<string> => {
+      g.setWave(wave);
+      const kinds = new Set<string>();
+      for (let i = 0; i < 400; i++) kinds.add((g as unknown as { pickKind(): string }).pickKind());
+      return kinds;
+    };
+    expect([...seen(1)]).toEqual(["chaser"]);
+    expect(seen(5)).toEqual(new Set(["chaser", "shooter"]));
+    expect(seen(12)).toEqual(new Set(["chaser", "shooter", "splitter", "blackhole"]));
   });
 });
