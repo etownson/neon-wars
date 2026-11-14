@@ -35,8 +35,8 @@ correct and this document is out of date.
 
 | Action | Gamepad | Keyboard / mouse |
 |---|---|---|
-| Move | Left stick (dead zone 0.2) | WASD or arrow keys |
-| Aim and fire | Right stick past dead zone 0.25 | Aim with mouse; hold mouse button, Space, or J |
+| Move | Left stick (dead zone `MOVE_DEADZONE` 0.2) | WASD or arrow keys |
+| Aim and fire | Right stick past dead zone `AIM_DEADZONE` 0.25 | Aim with mouse; hold mouse button, Space, or J |
 | Bomb | B (button 1) | B or F |
 | Pause | Start (button 9) | Esc or P |
 | Toggle music | Y (button 3) | M |
@@ -70,18 +70,21 @@ There is no separate fire button on gamepad: deflecting the right stick fires.
 ### Bomb
 - `BOMBS_START` 0, `BOMBS_MAX` 3. Gained only from pickups.
 - Detonating removes every enemy (black holes included) and every enemy bullet.
-- Each removed enemy scores its base points × the current multiplier and counts toward
-  kills and the streak. Bomb kills give no split bonus, spawn no minions, and drop no pickups.
+- Every removed enemy scores its base points × the multiplier in effect at the moment of
+  detonation; the multiplier does not climb during the blast.
+- Removed enemies still count toward kills and the streak, so the multiplier is recalculated
+  once afterward and the next kill benefits.
+- Bomb kills give no split bonus, spawn no minions, and drop no pickups.
 - Cannot be used while dead, paused, or after game over.
 
 ## Enemies
-All non-black-hole enemies have 1 HP. Speeds and shooter fire rate are multiplied by the wave scale (see Waves).
+All non-black-hole enemies have `ENEMY_HP` 1 HP. Speeds and shooter fire rate are multiplied by the wave scale (see Waves).
 
 | Kind | Radius | Base speed | Colour | Behaviour |
 |---|---|---|---|---|
 | Chaser | 12 | `CHASER_SPEED` 120 | cyan #00f0ff | Accelerates toward the player (`CHASER_ACCEL` 260). |
-| Shooter | 13 | `SHOOTER_SPEED` 90 | magenta #ff2a6d | Holds `SHOOTER_RANGE` 300 px (±40): approaches if farther, retreats if nearer, strafes inside the band and reverses strafe every 2–4 s. Fires one aimed bullet every `SHOOTER_FIRE_INTERVAL` 2.1 s (first shot after 1.2 s) when within 480 px. |
-| Splitter | 14 | `SPLITTER_SPEED` 85 | amber #ffb800 | Seeks the player slowly. On death spawns `SPLITTER_CHILDREN` 3 minions. |
+| Shooter | 13 | `SHOOTER_SPEED` 90 | magenta #ff2a6d | Holds `SHOOTER_RANGE` 300 px (±40): approaches if farther, retreats if nearer, strafes inside the band (see Known quirks for how often it reverses). Fires one aimed bullet every `SHOOTER_FIRE_INTERVAL` 2.1 s (first shot after `SHOOTER_FIRST_SHOT` 1.2 s) when within `SHOOTER_FIRE_RANGE` 480 px. |
+| Splitter | 14 | `SPLITTER_SPEED` 85 | amber #ffb800 | Seeks the player slowly (`SPLITTER_ACCEL` 208). On death releases `SPLITTER_CHILDREN` 3 minions outward at `MINION_SPLIT_SPEED` 95 px/s. |
 | Minion | 7 | `MINION_SPEED` 190 | electric blue #05d9e8 | Fast seeker (`MINION_ACCEL` 420). Only created by splitters. |
 | Black hole | 26 | `BLACKHOLE_DRIFT` 16 | magenta ring, dark core | Cannot be shot. Drifts and bounces. Expires after `BLACKHOLE_LIFE` 9 s. |
 
@@ -93,16 +96,17 @@ All non-black-hole enemies have 1 HP. Speeds and shooter fire rate are multiplie
 
 ## Waves and difficulty
 - A wave lasts `WAVE_TIME` 15 s, purely on a timer; there is no "clear the wave" condition.
+- The first enemy spawns `FIRST_SPAWN_DELAY` (1 s) into a run.
 - Enemies spawn one at a time at a random point on the arena edge, at least
   `SPAWN_MIN_DIST` 240 px from the player.
 
 | Scaling | Formula | Limit reached |
 |---|---|---|
-| Max enemies alive | 4 + wave, capped at 22 | wave 18 |
+| Max enemies alive | `ENEMY_CAP_BASE` 4 + wave, capped at `ENEMY_CAP_MAX` 22 | wave 18 |
 | Spawn interval | 1.6 s − 0.09 s × (wave − 1), minimum 0.45 s | wave 14 |
 | Speed and fire-rate scale | 1 + 0.05 × (wave − 1), maximum 1.7 | wave 15 |
 
-Spawn mix by wave:
+Spawn mix by wave (`SPAWN_MIX`; each entry applies from its first wave onward):
 
 | Waves | Chaser | Shooter | Splitter | Black hole |
 |---|---|---|---|---|
@@ -113,7 +117,7 @@ Spawn mix by wave:
 
 ## Pickups
 - Each enemy destroyed by a bullet has a `PICKUP_SPAWN_CHANCE` 8% chance to drop one.
-- Kind: spread rifle 50%, bomb 30%, extra life 20%.
+- Kind (`PICKUP_WEIGHTS`): spread rifle 50%, bomb 30%, extra life 20%.
 - At most `PICKUP_MAX_ON_FIELD` 4 at once; each despawns after `PICKUP_DESPAWN` 10 s.
 - Collected by touch (pickup radius 12 px). A bomb or life collected at its maximum is consumed with no effect.
 
@@ -156,7 +160,8 @@ Spawn mix by wave:
 - Bullets, enemies, pickups, particles, and the player are drawn to an offscreen canvas
   and composited additively for the glow.
 - Player bullets cyan #00f0ff; enemy bullets magenta #ff2a6d.
-- Kills burst into `KILL_PARTICLES` 14 particles in the enemy's colour.
+- Kills burst into `KILL_PARTICLES` 14 particles in the enemy's colour; bomb clears use `BOMB_PARTICLES` 8,
+  death clears `DEATH_CLEAR_PARTICLES` 6, and pickups `PICKUP_PARTICLES` 10.
 
 ### Feedback
 
@@ -179,7 +184,7 @@ All synthesized with Web Audio; starts on the first user input.
 
 ## Known quirks
 Behaviour that is in the code today and may not be intended. Do not change these unless a task says to.
-- **Some tunables are hard-coded in `game.ts`:** enemy HP (1), the enemy cap ceiling (22),
-  the shooter's first-shot delay (1.2 s) and strafe-flip interval (2–4 s), and pickup kind weights.
-- **A bomb scores each enemy at a rising multiplier**, because the streak increases with
-  every enemy it removes.
+- **Shooters reverse strafe about once a second, not every 2–4 s.** The strafe direction is
+  the sign of `sin(spin)`, and `spin` also rotates continuously at `ENEMY_SPIN_SPEED` 3 rad/s,
+  so the sign flips roughly every 1.05 s. The `SHOOTER_STRAFE_FLIP_MIN`/`MAX` timer adds an
+  extra flip on top.

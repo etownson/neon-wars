@@ -23,7 +23,7 @@ export class Game {
 
   time = 0;
   waveTime = 0;
-  spawnTimer = 1.0;
+  spawnTimer = cfg.FIRST_SPAWN_DELAY;
 
   shake = 0; // screen-shake trauma 0..1
   hitStop = 0; // seconds of simulation freeze
@@ -103,7 +103,7 @@ export class Game {
     this.multiplier = 1;
     this.wave = 1;
     this.waveTime = 0;
-    this.spawnTimer = 1.0;
+    this.spawnTimer = cfg.FIRST_SPAWN_DELAY;
     this.lives = cfg.LIVES_START;
     this.bombs = cfg.BOMBS_START;
     this.spreadTimer = 0;
@@ -156,7 +156,7 @@ export class Game {
 
     this.time += dt;
     this.shake = Math.max(0, this.shake - cfg.SHAKE_DECAY * dt);
-    this.flash = Math.max(0, this.flash - dt * 3);
+    this.flash = Math.max(0, this.flash - dt * cfg.FLASH_DECAY);
     this.spreadTimer = Math.max(0, this.spreadTimer - dt);
     this.updateBest();
 
@@ -277,11 +277,11 @@ export class Game {
       // Muzzle flash (kept dim since it's additive-composited).
       const d = state.aimDir;
       this.particles.push({
-        pos: v(p.pos.x + d.x * (p.radius + 4), p.pos.y + d.y * (p.radius + 4)),
-        vel: v(d.x * 60, d.y * 60),
-        life: 0.05,
-        maxLife: 0.05,
-        size: 1.6,
+        pos: v(p.pos.x + d.x * (p.radius + cfg.MUZZLE_OFFSET), p.pos.y + d.y * (p.radius + cfg.MUZZLE_OFFSET)),
+        vel: v(d.x * cfg.MUZZLE_SPEED, d.y * cfg.MUZZLE_SPEED),
+        life: cfg.MUZZLE_LIFE,
+        maxLife: cfg.MUZZLE_LIFE,
+        size: cfg.MUZZLE_SIZE,
         color: PALETTE.bullet,
       });
       this.fx.shoot?.();
@@ -306,7 +306,11 @@ export class Game {
     this.hitStop = Math.max(this.hitStop, s);
   }
 
-  /** Detonate a carried bomb: clear the board with score, flash and boom. */
+  /**
+   * Detonate a carried bomb: clear the board with score, flash and boom.
+   * Every enemy cleared scores at the multiplier in effect when the bomb went off;
+   * the cleared enemies still count toward the streak, so the multiplier rises afterward.
+   */
   detonateBomb(): void {
     if (this.paused || this.gameOver || !this.player.alive || this.bombs <= 0) return;
     this.bombs -= 1;
@@ -314,14 +318,15 @@ export class Game {
     this.addShake(cfg.BOMB_SHAKE);
     this.addHitStop(cfg.BOMB_HITSTOP);
     this.flash = cfg.BOMB_FLASH;
+    const mult = this.multiplier;
     for (const e of this.enemies) {
       const base = cfg.SCORE[e.kind as ScoreKey];
-      this.score += Math.round(base * this.multiplier);
+      this.score += Math.round(base * mult);
       this.kills += 1;
       this.streak += 1;
-      this.multiplier = this.computeMultiplier(this.streak);
-      this.burst(e.pos, enemyColor(e.kind), 8);
+      this.burst(e.pos, enemyColor(e.kind), cfg.BOMB_PARTICLES);
     }
+    this.multiplier = this.computeMultiplier(this.streak);
     this.enemies = [];
     this.enemyBullets = [];
     this.updateBest();
@@ -332,9 +337,7 @@ export class Game {
   private spawnPickup(at: Vec): void {
     if (this.gameOver) return;
     if (this.pickups.length >= cfg.PICKUP_MAX_ON_FIELD) return;
-    // Weighted kind: spread is commonest, life rarest.
-    const r = this.rng();
-    const kind: PickupKind = r < 0.5 ? "spread" : r < 0.8 ? "bomb" : "life";
+    const kind = weightedPick(cfg.PICKUP_WEIGHTS, this.rng) as PickupKind;
     this.pickups.push({ kind, pos: v(at.x, at.y), life: cfg.PICKUP_DESPAWN, spin: this.rng() * 6.28 });
   }
 
@@ -342,7 +345,7 @@ export class Game {
     const p = this.player;
     for (const pu of this.pickups) {
       pu.life -= dt;
-      pu.spin += dt * 2;
+      pu.spin += dt * cfg.PICKUP_SPIN_SPEED;
       if (p.alive && dist2(pu.pos, p.pos) < (cfg.PICKUP_RADIUS + p.radius) ** 2) {
         this.collectPickup(pu);
         pu.life = 0; // removed in cleanup
@@ -366,7 +369,7 @@ export class Game {
         this.fx.extraLife?.();
         break;
     }
-    this.burst(pu.pos, PALETTE.bullet, 10);
+    this.burst(pu.pos, PALETTE.bullet, cfg.PICKUP_PARTICLES);
   }
 
   private respawn(): void {
@@ -393,7 +396,7 @@ export class Game {
     const r2 = cfg.DEATH_CLEAR_RADIUS ** 2;
     this.enemies = this.enemies.filter((e) => {
       if (dist2(e.pos, p.pos) < r2) {
-        this.burst(e.pos, enemyColor(e.kind), 6);
+        this.burst(e.pos, enemyColor(e.kind), cfg.DEATH_CLEAR_PARTICLES);
         return false;
       }
       return true;
@@ -415,7 +418,7 @@ export class Game {
   }
 
   private enemyCap(): number {
-    return Math.min(cfg.ENEMY_CAP_BASE + this.wave, 22);
+    return Math.min(cfg.ENEMY_CAP_BASE + this.wave, cfg.ENEMY_CAP_MAX);
   }
 
   private spawnInterval(): number {
@@ -434,32 +437,21 @@ export class Game {
   }
 
   private pickKind(): EnemyKind {
-    const w = this.wave;
-    if (w < 4) return "chaser";
-    if (w < 7) return this.rng() < 0.7 ? "chaser" : "shooter";
-    if (w < 9) {
-      const r = this.rng();
-      if (r < 0.45) return "chaser";
-      if (r < 0.75) return "shooter";
-      return "splitter";
-    }
-    const r = this.rng();
-    if (r < 0.4) return "chaser";
-    if (r < 0.65) return "shooter";
-    if (r < 0.85) return "splitter";
-    return "blackhole";
+    let mix = cfg.SPAWN_MIX[0];
+    for (const m of cfg.SPAWN_MIX) if (m.fromWave <= this.wave) mix = m;
+    return weightedPick(mix.weights, this.rng) as EnemyKind;
   }
 
   private spawnEnemy(kind: EnemyKind): void {
     const pos = this.edgePoint();
-    const e: Enemy = { kind: "chaser", pos, vel: v(0, 0), radius: 10, hp: 1, spin: this.rng() * 6.28, fireCooldown: 0, life: 0 };
+    const e: Enemy = { kind: "chaser", pos, vel: v(0, 0), radius: 10, hp: cfg.ENEMY_HP, spin: this.rng() * 6.28, fireCooldown: 0, life: 0 };
     switch (kind) {
       case "chaser":
         e.kind = "chaser"; e.radius = cfg.CHASER_RADIUS; break;
       case "minion":
         e.kind = "minion"; e.radius = cfg.MINION_RADIUS; break;
       case "shooter":
-        e.kind = "shooter"; e.radius = cfg.SHOOTER_RADIUS; e.fireCooldown = 1.2; e.life = 2 + this.rng() * 2; break;
+        e.kind = "shooter"; e.radius = cfg.SHOOTER_RADIUS; e.fireCooldown = cfg.SHOOTER_FIRST_SHOT; e.life = this.strafeFlipTime(); break;
       case "splitter":
         e.kind = "splitter"; e.radius = cfg.SPLITTER_RADIUS; break;
       case "blackhole":
@@ -498,7 +490,7 @@ export class Game {
   private updateEnemies(dt: number, scale: number): void {
     const p = this.player.pos;
     for (const e of this.enemies) {
-      e.spin += dt * 3;
+      e.spin += dt * cfg.ENEMY_SPIN_SPEED;
       switch (e.kind) {
         case "chaser":
           this.seek(e, cfg.CHASER_SPEED * scale, cfg.CHASER_ACCEL, dt);
@@ -507,7 +499,7 @@ export class Game {
           this.seek(e, cfg.MINION_SPEED * scale, cfg.MINION_ACCEL, dt);
           break;
         case "splitter":
-          this.seek(e, cfg.SPLITTER_SPEED * scale, cfg.CHASER_ACCEL * 0.8, dt);
+          this.seek(e, cfg.SPLITTER_SPEED * scale, cfg.SPLITTER_ACCEL, dt);
           break;
         case "shooter":
           this.shooterBehavior(e, p, dt, scale);
@@ -549,7 +541,7 @@ export class Game {
     // Strafe direction flips on a timer (e.life doubles as the timer here).
     e.life -= dt;
     if (e.life <= 0) {
-      e.life = 2 + this.rng() * 2;
+      e.life = this.strafeFlipTime();
       e.spin += Math.PI; // flips strafe sign via sin
     }
     const strafeSign = Math.sin(e.spin) >= 0 ? 1 : -1;
@@ -570,7 +562,7 @@ export class Game {
 
     // Fire an aimed burst.
     e.fireCooldown -= dt;
-    if (e.fireCooldown <= 0 && dist < range * 1.6 && this.player.alive) {
+    if (e.fireCooldown <= 0 && dist < cfg.SHOOTER_FIRE_RANGE && this.player.alive) {
       e.fireCooldown = cfg.SHOOTER_FIRE_INTERVAL / scale;
       this.enemyBullets.push({
         pos: v(e.pos.x + toward.x * (e.radius + cfg.ENEMY_BULLET_RADIUS), e.pos.y + toward.y * (e.radius + cfg.ENEMY_BULLET_RADIUS)),
@@ -579,6 +571,10 @@ export class Game {
         life: cfg.ENEMY_BULLET_LIFE,
       });
     }
+  }
+
+  private strafeFlipTime(): number {
+    return cfg.SHOOTER_STRAFE_FLIP_MIN + this.rng() * (cfg.SHOOTER_STRAFE_FLIP_MAX - cfg.SHOOTER_STRAFE_FLIP_MIN);
   }
 
   private bounce(e: Enemy): void {
@@ -674,14 +670,14 @@ export class Game {
   private spawnMinions(at: Vec): void {
     for (let i = 0; i < cfg.SPLITTER_CHILDREN; i++) {
       const a = this.rng() * Math.PI * 2;
-      const off = cfg.SPLITTER_RADIUS + 4;
-      const vel = v(Math.cos(a) * cfg.MINION_SPEED * 0.5, Math.sin(a) * cfg.MINION_SPEED * 0.5);
+      const off = cfg.SPLITTER_RADIUS + cfg.MINION_SPLIT_GAP;
+      const vel = v(Math.cos(a) * cfg.MINION_SPLIT_SPEED, Math.sin(a) * cfg.MINION_SPLIT_SPEED);
       this.enemies.push({
         kind: "minion",
         pos: v(at.x + Math.cos(a) * off, at.y + Math.sin(a) * off),
         vel,
         radius: cfg.MINION_RADIUS,
-        hp: 1,
+        hp: cfg.ENEMY_HP,
         spin: this.rng() * 6.28,
         fireCooldown: 0,
         life: 0,
@@ -716,13 +712,13 @@ export class Game {
   private burst(origin: Vec, color: string, count: number): void {
     for (let i = 0; i < count; i++) {
       const a = this.rng() * Math.PI * 2;
-      const sp = cfg.PARTICLE_SPEED * (0.4 + this.rng() * 1.2);
+      const sp = cfg.PARTICLE_SPEED * lerp(cfg.PARTICLE_SPEED_MIN, cfg.PARTICLE_SPEED_MAX, this.rng());
       this.particles.push({
         pos: v(origin.x, origin.y),
         vel: v(Math.cos(a) * sp, Math.sin(a) * sp),
-        life: cfg.PARTICLE_LIFE * (0.5 + this.rng()),
+        life: cfg.PARTICLE_LIFE * lerp(cfg.PARTICLE_LIFE_MIN, cfg.PARTICLE_LIFE_MAX, this.rng()),
         maxLife: cfg.PARTICLE_LIFE,
-        size: 1.5 + this.rng() * 2.5,
+        size: lerp(cfg.PARTICLE_SIZE_MIN, cfg.PARTICLE_SIZE_MAX, this.rng()),
         color,
       });
     }
@@ -737,6 +733,23 @@ function enemyColor(kind: EnemyKind): string {
     case "minion": return PALETTE.minion;
     case "blackhole": return PALETTE.blackhole;
   }
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/** Pick a key with probability proportional to its weight (keys in declaration order). */
+function weightedPick(weights: Partial<Record<string, number>>, rng: () => number): string {
+  const entries = Object.entries(weights).filter((e): e is [string, number] => (e[1] ?? 0) > 0);
+  if (entries.length === 1) return entries[0][0];
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let r = rng() * total;
+  for (const [k, w] of entries) {
+    r -= w;
+    if (r < 0) return k;
+  }
+  return entries[entries.length - 1][0];
 }
 
 function dist2(a: Vec, b: Vec): number {

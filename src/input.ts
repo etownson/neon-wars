@@ -1,6 +1,7 @@
 // Input layer: gamepad (primary) with a keyboard + mouse fallback so the
 // game is playable during development without a controller plugged in.
 import { stick, Vec, v } from "./vec";
+import { AIM_DEADZONE, MOVE_DEADZONE } from "./config";
 
 export interface AimInput {
   /** True when we want to fire this frame. */
@@ -58,8 +59,8 @@ export class Input {
     const gp = this.gpIndex === null ? undefined : navigator.getGamepads()[this.gpIndex];
 
     if (gp) {
-      const move = stick(gp.axes[0] ?? 0, gp.axes[1] ?? 0, 0.2);
-      const rawAim = stick(gp.axes[2] ?? 0, gp.axes[3] ?? 0, 0.25);
+      const move = stick(gp.axes[0] ?? 0, gp.axes[1] ?? 0, MOVE_DEADZONE);
+      const rawAim = stick(gp.axes[2] ?? 0, gp.axes[3] ?? 0, AIM_DEADZONE);
       return { move, aim: { firing: len(rawAim) > 0, dir: rawAim } };
     }
 

@@ -1,5 +1,6 @@
 // Central tuning constants for Neon Wars.
 // Keep everything tunable here so the "feel" can be iterated cheaply.
+import type { EnemyKind, PickupKind } from "./types";
 
 export const PALETTE = {
   bg: "#050510",
@@ -35,6 +36,16 @@ export const PLAYER_RESPONSE = 9;
 export const PLAYER_MAX_SPEED = 660; // px / s
 export const FIRE_RATE = 8; // shots / s while aiming
 
+// Analog stick dead zones (fraction of full deflection, 0..1)
+export const MOVE_DEADZONE = 0.2;
+export const AIM_DEADZONE = 0.25; // right stick fires once past this
+
+// Muzzle flash particle (cosmetic)
+export const MUZZLE_OFFSET = 4; // px beyond the ship's radius
+export const MUZZLE_SPEED = 60; // px / s
+export const MUZZLE_LIFE = 0.05; // seconds
+export const MUZZLE_SIZE = 1.6; // px
+
 // Bullets
 export const BULLET_SPEED = 620;
 export const BULLET_RADIUS = 3;
@@ -43,15 +54,30 @@ export const BULLET_LIFE = 1.1; // seconds
 // Chaser enemy
 export const CHASER_RADIUS = 12;
 export const CHASER_SPEED = 120;
-export const CHASER_ACCEL = 260; // how hard it turns toward player
+export const CHASER_ACCEL = 260; // px/s^2, how hard it turns toward player
+
+// All shootable enemies (chaser, shooter, splitter, minion)
+export const ENEMY_HP = 1; // bullet hits to destroy
+export const ENEMY_SPIN_SPEED = 3; // rad / s; cosmetic, but also drives shooter strafe sign
 
 // Spawning
-export const SPAWN_MIN_DIST = 240; // min distance from player at spawn
+export const SPAWN_MIN_DIST = 240; // px, min distance from player at spawn
+export const FIRST_SPAWN_DELAY = 1.0; // seconds from run start to the first enemy
 
 // Particle
 export const PARTICLE_SPEED = 140;
 export const PARTICLE_LIFE = 0.55;
 export const KILL_PARTICLES = 14;
+export const BOMB_PARTICLES = 8; // per enemy cleared by a bomb
+export const DEATH_CLEAR_PARTICLES = 6; // per enemy cleared around the player's death
+export const PICKUP_PARTICLES = 10;
+// Each burst particle gets a random factor in [MIN, MAX) for speed and life, and a size in px.
+export const PARTICLE_SPEED_MIN = 0.4;
+export const PARTICLE_SPEED_MAX = 1.6;
+export const PARTICLE_LIFE_MIN = 0.5;
+export const PARTICLE_LIFE_MAX = 1.5;
+export const PARTICLE_SIZE_MIN = 1.5;
+export const PARTICLE_SIZE_MAX = 4.0;
 
 // Simulation
 export const FIXED_DT = 1 / 240; // seconds per simulation step
@@ -60,7 +86,17 @@ export const FIXED_DT = 1 / 240; // seconds per simulation step
 
 export const WAVE_TIME = 15; // seconds per wave
 
-export const ENEMY_CAP_BASE = 4;
+export const ENEMY_CAP_BASE = 4; // max enemies alive = base + wave
+export const ENEMY_CAP_MAX = 22; // ceiling on max enemies alive
+
+// Spawn mix: the last entry whose fromWave <= current wave applies.
+// Weights are relative chances; they need not sum to 1.
+export const SPAWN_MIX: ReadonlyArray<{ fromWave: number; weights: Partial<Record<EnemyKind, number>> }> = [
+  { fromWave: 1, weights: { chaser: 1 } },
+  { fromWave: 4, weights: { chaser: 0.7, shooter: 0.3 } },
+  { fromWave: 7, weights: { chaser: 0.45, shooter: 0.3, splitter: 0.25 } },
+  { fromWave: 9, weights: { chaser: 0.4, shooter: 0.25, splitter: 0.2, blackhole: 0.15 } },
+];
 
 export const SPAWN_INTERVAL_BASE = 1.6;
 export const SPAWN_INTERVAL_MIN = 0.45;
@@ -77,7 +113,11 @@ export const SHOOTER_SPEED = 90; // lateral max speed
 export const SHOOTER_ACCEL = 240;
 export const SHOOTER_RANGE = 300; // preferred distance from player
 export const SHOOTER_RANGE_TOLERANCE = 40;
-export const SHOOTER_FIRE_INTERVAL = 2.1; // seconds between aimed bursts
+export const SHOOTER_FIRE_INTERVAL = 2.1; // seconds between aimed shots
+export const SHOOTER_FIRST_SHOT = 1.2; // seconds after spawning before the first shot
+export const SHOOTER_FIRE_RANGE = 480; // px; only fires when the player is this close
+export const SHOOTER_STRAFE_FLIP_MIN = 2; // seconds; strafe direction flips after a
+export const SHOOTER_STRAFE_FLIP_MAX = 4; //   random time in [MIN, MAX)
 
 export const ENEMY_BULLET_RADIUS = 4;
 export const ENEMY_BULLET_SPEED = 210;
@@ -86,10 +126,13 @@ export const ENEMY_BULLET_LIFE = 4; // seconds
 // Splitter
 export const SPLITTER_RADIUS = 14;
 export const SPLITTER_SPEED = 85;
+export const SPLITTER_ACCEL = 208; // px/s^2
 export const SPLITTER_CHILDREN = 3;
 export const MINION_RADIUS = 7;
 export const MINION_SPEED = 190;
 export const MINION_ACCEL = 420;
+export const MINION_SPLIT_SPEED = 95; // px / s outward speed when released
+export const MINION_SPLIT_GAP = 4; // px beyond the splitter's radius where minions appear
 
 // Black hole
 export const BLACKHOLE_RADIUS = 26;
@@ -147,6 +190,7 @@ export const BOMBS_MAX = 3;
 export const BOMB_SHAKE = 1.0;
 export const BOMB_HITSTOP = 0.12;
 export const BOMB_FLASH = 1.0;
+export const FLASH_DECAY = 3; // white-flash fade rate (/s)
 
 // ---- Spread rifle (timed power-up) ----
 export const SPREAD_DURATION = 14; // seconds active
@@ -159,5 +203,7 @@ export const PICKUP_RADIUS = 12;
 export const PICKUP_DESPAWN = 10; // seconds before a pickup fades
 export const PICKUP_MAX_ON_FIELD = 4;
 export const PICKUP_SPAWN_CHANCE = 0.08; // per destroy, chance to drop any pickup
+export const PICKUP_WEIGHTS: Record<PickupKind, number> = { spread: 0.5, bomb: 0.3, life: 0.2 };
+export const PICKUP_SPIN_SPEED = 2; // rad / s, cosmetic
 
 export const HIGH_SCORE_KEY = "neon-wars-best";
