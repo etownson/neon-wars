@@ -27,13 +27,12 @@ export const WORLD_MARGIN = 60; // keep entities inside canvas minus margin
 
 // Player
 export const PLAYER_RADIUS = 10;
-export const PLAYER_SPEED = 300; // px / s target stick speed
-// Critically-damped response rate: how quickly stick velocity settles toward target.
-// Higher = snappier, lower = heavier/sluggish. ~0.1s to 63% of full speed at 10.
+export const PLAYER_SPEED = 600; // px / s top speed at full stick
+// Exponential response rate (/s): how quickly velocity settles toward the stick target.
+// Higher = snappier, lower = heavier. Time to 63% of target speed = 1 / PLAYER_RESPONSE s.
 export const PLAYER_RESPONSE = 9;
-// Combined speed ceiling (stick velocity + black-hole gravity) to keep things floaty.
-export const PLAYER_MAX_SPEED = 360; // px / s
-export const PLAYER_HIT_DEADZONE = 0.25; // right stick magnitude below this is idle
+// Combined speed ceiling (stick velocity + black-hole gravity) so a pull can't fling you.
+export const PLAYER_MAX_SPEED = 660; // px / s
 export const FIRE_RATE = 8; // shots / s while aiming
 
 // Bullets
@@ -45,10 +44,8 @@ export const BULLET_LIFE = 1.1; // seconds
 export const CHASER_RADIUS = 12;
 export const CHASER_SPEED = 120;
 export const CHASER_ACCEL = 260; // how hard it turns toward player
-export const CHASER_HP = 1;
 
 // Spawning
-export const SPAWN_INTERVAL = 1.6; // seconds between spawns
 export const SPAWN_MIN_DIST = 240; // min distance from player at spawn
 
 // Particle
@@ -57,7 +54,7 @@ export const PARTICLE_LIFE = 0.55;
 export const KILL_PARTICLES = 14;
 
 // Simulation
-export const FIXED_DT = 1 / 120; // physics timestep
+export const FIXED_DT = 1 / 240; // seconds per simulation step
 
 // ---- M3: Wave / scaling ----
 
@@ -81,7 +78,6 @@ export const SHOOTER_ACCEL = 240;
 export const SHOOTER_RANGE = 300; // preferred distance from player
 export const SHOOTER_RANGE_TOLERANCE = 40;
 export const SHOOTER_FIRE_INTERVAL = 2.1; // seconds between aimed bursts
-export const SHOOTER_STRAFE_BAND = 120; // strafe amplitude around range
 
 export const ENEMY_BULLET_RADIUS = 4;
 export const ENEMY_BULLET_SPEED = 210;

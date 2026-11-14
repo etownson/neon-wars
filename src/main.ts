@@ -1,13 +1,13 @@
-// Entry point: wires the canvas, input, renderer and a variable-timestep loop.
-// Variable timestep renders exactly what was simulated this frame, which avoids
-// the stair-stepping judder that a fixed timestep can show on mismatched refresh
-// rates. All game physics are continuous (acceleration/velocity based), so this
-// is safely frame-rate independent.
+// Entry point: wires the canvas, input, renderer and a fixed-timestep loop.
+// The simulation always advances in steps of cfg.FIXED_DT (1/240 s), so it plays
+// the same on 60, 120 and 144 Hz displays. The step is small enough that frames
+// on mismatched refresh rates show little stair-stepping without interpolation.
 import { Input } from "./input";
 import { Game } from "./game";
 import { Renderer } from "./renderer";
 import { Sounds } from "./audio";
 import * as cfg from "./config";
+import { FixedStepper } from "./fixedStep";
 import {
   leaderboardEnabled,
   submitScore,
@@ -15,7 +15,8 @@ import {
   type LeaderboardEntry,
 } from "./leaderboard";
 
-const MAX_DT = 0.05; // cap to avoid physics blowups after a long stall/tab switch
+const MAX_DT = 0.05; // longest frame we simulate; a longer stall slows the game instead
+const stepper = new FixedStepper(cfg.FIXED_DT, Math.ceil(MAX_DT / cfg.FIXED_DT));
 const sounds = new Sounds();
 
 // Debug options (wave skipping, on-screen error readout) are only enabled when
@@ -88,6 +89,7 @@ function beginRun(): void {
   if (startEl) startEl.style.display = "none";
   game.reset();
   last = performance.now(); // don't count time spent on the start screen
+  stepper.reset();
 }
 window.addEventListener("keydown", (e) => {
   if (!started && !e.repeat) beginRun();
@@ -230,10 +232,9 @@ function frame(now: number): void {
   }
 
   const raw = input.read(game.player.pos);
-  game.step(
-    { move: raw.move, firing: raw.aim.firing, aimDir: raw.aim.dir },
-    dt
-  );
+  const state = { move: raw.move, firing: raw.aim.firing, aimDir: raw.aim.dir };
+  const steps = stepper.advance(dt);
+  for (let i = 0; i < steps; i++) game.step(state, cfg.FIXED_DT);
 
   // Debug: shoulder buttons step the wave (LB down / RB up). B/F detonates a bomb.
   const wstep = input.getWaveStep();
