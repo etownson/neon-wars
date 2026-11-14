@@ -227,12 +227,6 @@ export class Game {
     const p = this.player;
     const move = state.move;
 
-    // Move from left stick.
-    p.pos.x += move.x * cfg.PLAYER_SPEED * dt;
-    p.pos.y += move.y * cfg.PLAYER_SPEED * dt;
-    p.pos.x = clamp(p.pos.x, cfg.WORLD_MARGIN, this.width - cfg.WORLD_MARGIN);
-    p.pos.y = clamp(p.pos.y, cfg.WORLD_MARGIN, this.height - cfg.WORLD_MARGIN);
-
     // Smoothly settle stick velocity toward its target (critically damped → weight
     // without jitter: accelerates and coasts, never snaps).
     const desiredX = move.x * cfg.PLAYER_SPEED;
