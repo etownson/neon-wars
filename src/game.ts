@@ -444,14 +444,14 @@ export class Game {
 
   private spawnEnemy(kind: EnemyKind): void {
     const pos = this.edgePoint();
-    const e: Enemy = { kind: "chaser", pos, vel: v(0, 0), radius: 10, hp: cfg.ENEMY_HP, spin: this.rng() * 6.28, fireCooldown: 0, life: 0 };
+    const e: Enemy = { kind: "chaser", pos, vel: v(0, 0), radius: 10, hp: cfg.ENEMY_HP, spin: this.rng() * 6.28, fireCooldown: 0, life: 0, strafe: 0 };
     switch (kind) {
       case "chaser":
         e.kind = "chaser"; e.radius = cfg.CHASER_RADIUS; break;
       case "minion":
         e.kind = "minion"; e.radius = cfg.MINION_RADIUS; break;
       case "shooter":
-        e.kind = "shooter"; e.radius = cfg.SHOOTER_RADIUS; e.fireCooldown = cfg.SHOOTER_FIRST_SHOT; e.life = this.strafeFlipTime(); break;
+        e.kind = "shooter"; e.radius = cfg.SHOOTER_RADIUS; e.fireCooldown = cfg.SHOOTER_FIRST_SHOT; e.life = this.strafeFlipTime(); e.strafe = this.rng() < 0.5 ? -1 : 1; break;
       case "splitter":
         e.kind = "splitter"; e.radius = cfg.SPLITTER_RADIUS; break;
       case "blackhole":
@@ -542,9 +542,9 @@ export class Game {
     e.life -= dt;
     if (e.life <= 0) {
       e.life = this.strafeFlipTime();
-      e.spin += Math.PI; // flips strafe sign via sin
+      e.strafe = -e.strafe;
     }
-    const strafeSign = Math.sin(e.spin) >= 0 ? 1 : -1;
+    const strafeSign = e.strafe;
     const perp = v(-toward.y, toward.x);
 
     let dir: Vec;
@@ -681,6 +681,7 @@ export class Game {
         spin: this.rng() * 6.28,
         fireCooldown: 0,
         life: 0,
+        strafe: 0,
       });
     }
   }

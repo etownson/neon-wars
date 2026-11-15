@@ -58,7 +58,7 @@ export const CHASER_ACCEL = 260; // px/s^2, how hard it turns toward player
 
 // All shootable enemies (chaser, shooter, splitter, minion)
 export const ENEMY_HP = 1; // bullet hits to destroy
-export const ENEMY_SPIN_SPEED = 3; // rad / s; cosmetic, but also drives shooter strafe sign
+export const ENEMY_SPIN_SPEED = 3; // rad / s, cosmetic sprite rotation
 
 // Spawning
 export const SPAWN_MIN_DIST = 240; // px, min distance from player at spawn

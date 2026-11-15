@@ -31,7 +31,8 @@ export interface Enemy {
   hp: number;
   spin: number; // cosmetic rotation
   fireCooldown: number; // shooters
-  life: number; // black holes count down to expiry
+  life: number; // black holes: seconds to expiry; shooters: seconds to next strafe flip
+  strafe: number; // shooters: +1 or -1 strafe direction; 0 for other kinds
 }
 
 export interface Particle {

@@ -83,7 +83,7 @@ All non-black-hole enemies have `ENEMY_HP` 1 HP. Speeds and shooter fire rate ar
 | Kind | Radius | Base speed | Colour | Behaviour |
 |---|---|---|---|---|
 | Chaser | 12 | `CHASER_SPEED` 120 | cyan #00f0ff | Accelerates toward the player (`CHASER_ACCEL` 260). |
-| Shooter | 13 | `SHOOTER_SPEED` 90 | magenta #ff2a6d | Holds `SHOOTER_RANGE` 300 px (±40): approaches if farther, retreats if nearer, strafes inside the band (see Known quirks for how often it reverses). Fires one aimed bullet every `SHOOTER_FIRE_INTERVAL` 2.1 s (first shot after `SHOOTER_FIRST_SHOT` 1.2 s) when within `SHOOTER_FIRE_RANGE` 480 px. |
+| Shooter | 13 | `SHOOTER_SPEED` 90 | magenta #ff2a6d | Holds `SHOOTER_RANGE` 300 px (±40): approaches if farther, retreats if nearer, strafes inside the band in a random starting direction and reverses after a random `SHOOTER_STRAFE_FLIP_MIN`–`MAX` 2–4 s. Fires one aimed bullet every `SHOOTER_FIRE_INTERVAL` 2.1 s (first shot after `SHOOTER_FIRST_SHOT` 1.2 s) when within `SHOOTER_FIRE_RANGE` 480 px. |
 | Splitter | 14 | `SPLITTER_SPEED` 85 | amber #ffb800 | Seeks the player slowly (`SPLITTER_ACCEL` 208). On death releases `SPLITTER_CHILDREN` 3 minions outward at `MINION_SPLIT_SPEED` 95 px/s. |
 | Minion | 7 | `MINION_SPEED` 190 | electric blue #05d9e8 | Fast seeker (`MINION_ACCEL` 420). Only created by splitters. |
 | Black hole | 26 | `BLACKHOLE_DRIFT` 16 | magenta ring, dark core | Cannot be shot. Drifts and bounces. Expires after `BLACKHOLE_LIFE` 9 s. |
@@ -181,10 +181,3 @@ All synthesized with Web Audio; starts on the first user input.
   advance (full intensity at wave 10). Can be muted.
 - **SFX:** shoot, kill, split, player death, pickup chime, extra-life arpeggio, bomb boom,
   wave-up sting, black hole spawn, and a continuous rumble while any black hole is alive.
-
-## Known quirks
-Behaviour that is in the code today and may not be intended. Do not change these unless a task says to.
-- **Shooters reverse strafe about once a second, not every 2–4 s.** The strafe direction is
-  the sign of `sin(spin)`, and `spin` also rotates continuously at `ENEMY_SPIN_SPEED` 3 rad/s,
-  so the sign flips roughly every 1.05 s. The `SHOOTER_STRAFE_FLIP_MIN`/`MAX` timer adds an
-  extra flip on top.
