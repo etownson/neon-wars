@@ -106,7 +106,7 @@ describe("fixed timestep", () => {
 
 describe("bomb", () => {
   function chaserAt(x: number, y: number): Enemy {
-    return { kind: "chaser", pos: { x, y }, vel: { x: 0, y: 0 }, radius: cfg.CHASER_RADIUS, hp: cfg.ENEMY_HP, spin: 0, fireCooldown: 0, life: 0 };
+    return { kind: "chaser", pos: { x, y }, vel: { x: 0, y: 0 }, radius: cfg.CHASER_RADIUS, hp: cfg.ENEMY_HP, spin: 0, fireCooldown: 0, life: 0, strafe: 0 };
   }
 
   it("scores every enemy at the multiplier in effect when detonated", () => {
@@ -138,5 +138,36 @@ describe("spawn mix", () => {
     expect([...seen(1)]).toEqual(["chaser"]);
     expect(seen(5)).toEqual(new Set(["chaser", "shooter"]));
     expect(seen(12)).toEqual(new Set(["chaser", "shooter", "splitter", "blackhole"]));
+  });
+});
+
+describe("shooter strafe", () => {
+  it("reverses on the SHOOTER_STRAFE_FLIP timer, independent of sprite spin", () => {
+    const g = new Game(4000, 4000, {}, makeRng(5));
+    g.reset();
+    g.setWave(5);
+    (g as unknown as { spawnEnemy(kind: string): void }).spawnEnemy("shooter");
+    const e = g.enemies[g.enemies.length - 1];
+    const IDLE: InputState = { move: { x: 0, y: 0 }, firing: false, aimDir: { x: 0, y: 0 } };
+    let flips = 0;
+    let last = e.strafe;
+    let shortest = Infinity;
+    let since = 0;
+    const seconds = 40;
+    for (let i = 0; i < seconds / cfg.FIXED_DT; i++) {
+      g.player.invuln = 1; // keep the player alive
+      g.step(IDLE, cfg.FIXED_DT);
+      since += cfg.FIXED_DT;
+      if (e.strafe !== last) {
+        if (flips > 0) shortest = Math.min(shortest, since);
+        flips++;
+        last = e.strafe;
+        since = 0;
+      }
+    }
+    expect(Math.abs(e.strafe)).toBe(1);
+    expect(flips).toBeGreaterThanOrEqual(Math.floor(seconds / cfg.SHOOTER_STRAFE_FLIP_MAX) - 1);
+    expect(flips).toBeLessThanOrEqual(Math.ceil(seconds / cfg.SHOOTER_STRAFE_FLIP_MIN) + 1);
+    expect(shortest).toBeGreaterThanOrEqual(cfg.SHOOTER_STRAFE_FLIP_MIN - cfg.FIXED_DT * 2);
   });
 });
